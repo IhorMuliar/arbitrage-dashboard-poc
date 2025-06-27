@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useWebSocket } from '../../hooks/useWebSocket';
 
 interface TradeSetupPanelProps {
   selectedPair: string;
@@ -37,43 +38,60 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
   const [isExecuting, setIsExecuting] = useState(false);
   const [tradePreview, setTradePreview] = useState<TradePreview | null>(null);
 
-  // Mock balance data
+  // Connect to WebSocket for real data
+  const { data: arbitrageData, isConnected } = useWebSocket('ws://localhost:8765');
+
+  // Mock balance data - in a real app, this would come from the backend
   const balances = {
     USDT: 10000,
     BTC: 0.5,
     ETH: 5.2
   };
 
-  const availablePairs = [
-    'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'AVAX/USDT', 'DOGE/USDT'
-  ];
+  // Get available pairs from real data
+  const availablePairs = arbitrageData?.pairs
+    ?.filter(pair => pair.bybit.available) // Only show pairs available on Bybit
+    ?.map(pair => pair.pair) || [];
 
-  // Calculate trade preview when amount or pair changes
+  // Get current pair data for calculations
+  const currentPairData = arbitrageData?.pairs?.find(pair => pair.pair === selectedPair);
+
+  // Calculate trade preview when amount, pair, or data changes
   useEffect(() => {
-    if (amount && selectedPair && parseFloat(amount) > 0) {
-      // Mock calculation - replace with real logic
+    if (amount && selectedPair && parseFloat(amount) > 0 && currentPairData) {
       const amountNum = parseFloat(amount);
+      const fundingRate = currentPairData.funding_rate;
+
+      // Calculate estimated daily profit based on funding rate
+      const dailyProfit = amountNum * fundingRate;
+      const expectedProfit = dailyProfit; // Estimated for next funding period
+      
+      // Estimate fees (these would be more accurate with real exchange data)
+      const hyperliquidFee = amountNum * 0.0002; // 0.02% maker fee
+      const bybitFee = amountNum * 0.001; // 0.1% spot trading fee
+      const totalFees = hyperliquidFee + bybitFee;
+      
       const preview: TradePreview = {
-        expectedProfit: amountNum * 0.0024, // 0.24% profit
+        expectedProfit: expectedProfit,
         feeBreakdown: {
-          hyperliquid: amountNum * 0.0002,
-          bybit: amountNum * 0.001,
-          total: amountNum * 0.0012
+          hyperliquid: hyperliquidFee,
+          bybit: bybitFee,
+          total: totalFees
         },
         riskMetrics: {
-          maxDrawdown: amountNum * 0.05,
-          roi: 0.24
+          maxDrawdown: amountNum * 0.05, // 5% estimated max drawdown
+          roi: (expectedProfit / amountNum) * 100
         },
         positions: {
-          hyperliquid: amountNum * 0.5,
-          bybit: amountNum * 0.5
+          hyperliquid: amountNum, // Short position on HyperLiquid
+          bybit: amountNum // Long position (spot buy) on Bybit
         }
       };
       setTradePreview(preview);
     } else {
       setTradePreview(null);
     }
-  }, [amount, selectedPair]);
+  }, [amount, selectedPair, currentPairData]);
 
   const handlePercentageClick = (percentage: number) => {
     const balance = balances[currency];
@@ -101,11 +119,22 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
     }
   };
 
-  const isValidTrade = amount && parseFloat(amount) > 0 && selectedPair && parseFloat(amount) <= balances[currency];
+  const isValidTrade = amount && 
+                     parseFloat(amount) > 0 && 
+                     selectedPair && 
+                     parseFloat(amount) <= balances[currency] &&
+                     currentPairData?.bybit.available;
 
   return (
     <div className="glass-card rounded-xl p-6 space-y-6">
-      <h2 className="text-xl font-bold text-white">Trade Setup</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-white">Trade Setup</h2>
+        {!isConnected && (
+          <div className="text-sm text-warning bg-warning/10 px-3 py-1 rounded">
+            Connecting to data source...
+          </div>
+        )}
+      </div>
       
       {/* Pair Selection */}
       <div className="space-y-2">
@@ -116,9 +145,15 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
           <select
             value={selectedPair}
             onChange={(e) => onPairChange(e.target.value)}
-            className="w-full px-4 py-3 bg-tertiary border border-white/10 rounded-lg text-white focus:border-accent focus:outline-none appearance-none cursor-pointer"
+            disabled={!isConnected || availablePairs.length === 0}
+            className="w-full px-4 py-3 bg-tertiary border border-white/10 rounded-lg text-white focus:border-accent focus:outline-none appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <option value="">Select a pair...</option>
+            <option value="">
+              {availablePairs.length === 0 
+                ? (isConnected ? 'No pairs with positive funding available' : 'Loading pairs...')
+                : 'Select a pair...'
+              }
+            </option>
             {availablePairs.map(pair => (
               <option key={pair} value={pair}>{pair}</option>
             ))}
@@ -129,10 +164,20 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
             </svg>
           </div>
         </div>
-        {selectedPair && (
-          <div className="flex items-center gap-2 text-xs text-success">
-            <span>✓</span>
-            <span>Valid pair selected</span>
+        {selectedPair && currentPairData && (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-xs text-success">
+              <span>✓</span>
+              <span>Valid arbitrage pair</span>
+            </div>
+            <div className="text-xs text-text-secondary">
+              Funding rate: {(currentPairData.funding_rate * 100).toFixed(4)}% 
+              ({currentPairData.annual_funding_rate.toFixed(1)}% APY)
+            </div>
+            <div className="text-xs text-text-secondary">
+              HyperLiquid: ${currentPairData.hyperliquid.ask.toFixed(2)} | 
+              Bybit: ${currentPairData.bybit.last.toFixed(2)}
+            </div>
           </div>
         )}
       </div>
@@ -158,7 +203,8 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
             className="px-4 py-3 bg-tertiary border border-white/10 rounded-lg text-white focus:border-accent focus:outline-none"
           >
             <option value="USDT">USDT</option>
-            {/* <option value="BTC">BTC</option>
+            {/* Uncomment when other currencies are supported
+            <option value="BTC">BTC</option>
             <option value="ETH">ETH</option> */}
           </select>
         </div>
@@ -182,63 +228,66 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
       </div>
 
       {/* Trade Preview */}
-      {tradePreview && (
+      {tradePreview && currentPairData && (
         <div className="space-y-4 p-4 bg-white/5 rounded-lg border border-white/10">
           <h3 className="text-sm font-medium text-white">Trade Preview</h3>
           
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <span className="text-text-secondary">Expected Profit:</span>
+              <span className="text-text-secondary">Expected Profit (8h):</span>
               <span className="block text-success font-mono font-bold">
-                +${tradePreview.expectedProfit.toFixed(2)}
+                +${tradePreview.expectedProfit.toFixed(4)}
               </span>
             </div>
             <div>
-              <span className="text-text-secondary">ROI:</span>
+              <span className="text-text-secondary">ROI (8h):</span>
               <span className="block text-success font-mono font-bold">
-                {tradePreview.riskMetrics.roi.toFixed(2)}%
+                {tradePreview.riskMetrics.roi.toFixed(4)}%
+              </span>
+            </div>
+            <div>
+              <span className="text-text-secondary">Total Fees:</span>
+              <span className="block text-error font-mono">
+                -${tradePreview.feeBreakdown.total.toFixed(4)}
+              </span>
+            </div>
+            <div>
+              <span className="text-text-secondary">Net Profit:</span>
+              <span className={`block font-mono font-bold ${
+                (tradePreview.expectedProfit - tradePreview.feeBreakdown.total) > 0 
+                  ? 'text-success' : 'text-error'
+              }`}>
+                ${(tradePreview.expectedProfit - tradePreview.feeBreakdown.total).toFixed(4)}
               </span>
             </div>
           </div>
-
-          <div className="space-y-2">
-            <div className="text-xs text-text-secondary">Fee Breakdown:</div>
-            <div className="grid grid-cols-3 gap-2 text-xs">
+          
+          {/* Position Details */}
+          <div className="space-y-2 pt-2 border-t border-white/10">
+            <div className="text-xs text-text-secondary">Position Details:</div>
+            <div className="grid grid-cols-2 gap-4 text-xs">
               <div>
-                <span className="text-text-secondary">HyperLiquid:</span>
-                <span className="block text-white font-mono">
-                  ${tradePreview.feeBreakdown.hyperliquid.toFixed(2)}
-                </span>
+                <span className="text-text-secondary">HyperLiquid (Short):</span>
+                <div className="text-white font-mono">${tradePreview.positions.hyperliquid.toFixed(2)}</div>
               </div>
               <div>
-                <span className="text-text-secondary">Bybit:</span>
-                <span className="block text-white font-mono">
-                  ${tradePreview.feeBreakdown.bybit.toFixed(2)}
-                </span>
-              </div>
-              <div>
-                <span className="text-text-secondary">Total:</span>
-                <span className="block text-error font-mono">
-                  ${tradePreview.feeBreakdown.total.toFixed(2)}
-                </span>
+                <span className="text-text-secondary">Bybit (Spot Buy):</span>
+                <div className="text-white font-mono">${tradePreview.positions.bybit.toFixed(2)}</div>
               </div>
             </div>
           </div>
-
-          <div className="space-y-2">
-            <div className="text-xs text-text-secondary">Position Allocation:</div>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <span className="text-text-secondary">HyperLiquid:</span>
-                <span className="block text-white font-mono">
-                  ${tradePreview.positions.hyperliquid.toFixed(2)}
-                </span>
+          
+          {/* Fee Breakdown */}
+          <div className="space-y-2 pt-2 border-t border-white/10">
+            <div className="text-xs text-text-secondary">Fee Breakdown:</div>
+            <div className="space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-text-secondary">HyperLiquid (0.02%):</span>
+                <span className="text-white font-mono">${tradePreview.feeBreakdown.hyperliquid.toFixed(4)}</span>
               </div>
-              <div>
-                <span className="text-text-secondary">Bybit:</span>
-                <span className="block text-white font-mono">
-                  ${tradePreview.positions.bybit.toFixed(2)}
-                </span>
+              <div className="flex justify-between">
+                <span className="text-text-secondary">Bybit (0.10%):</span>
+                <span className="text-white font-mono">${tradePreview.feeBreakdown.bybit.toFixed(4)}</span>
               </div>
             </div>
           </div>
@@ -249,21 +298,28 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
       <button
         onClick={handleExecute}
         disabled={!isValidTrade || isExecuting}
-        className={`w-full py-4 px-6 rounded-lg font-bold text-lg transition-all duration-300 ${
-          isValidTrade && !isExecuting
-            ? 'bg-gradient-to-r from-accent to-blue-600 text-white neon-glow hover:shadow-xl hover:scale-[1.02]'
-            : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-        }`}
+        className="w-full bg-accent text-background py-3 px-6 rounded-lg font-medium hover:bg-accent/80 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2"
       >
         {isExecuting ? (
-          <div className="flex items-center justify-center gap-3">
-            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+          <>
+            <div className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin"></div>
             Executing Trade...
-          </div>
+          </>
         ) : (
-          'EXECUTE ARBITRAGE'
+          'Execute Arbitrage Trade'
         )}
       </button>
+      
+      {!isValidTrade && amount && selectedPair && (
+        <div className="text-sm text-error">
+          {!currentPairData?.bybit.available 
+            ? 'Selected pair is not available on Bybit'
+            : parseFloat(amount) > balances[currency]
+            ? 'Insufficient balance'
+            : 'Please check your trade parameters'
+          }
+        </div>
+      )}
     </div>
   );
 } 
