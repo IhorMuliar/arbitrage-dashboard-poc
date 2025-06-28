@@ -163,8 +163,8 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
               ({currentPairData.annual_funding_rate.toFixed(1)}% APY)
             </div>
             <div className="text-xs text-text-secondary">
-              HyperLiquid: ${currentPairData.hyperliquid.ask.toFixed(2)} | 
-              Bybit: ${currentPairData.bybit.last.toFixed(2)}
+              HyperLiquid bid price: ${currentPairData.hyperliquid.bid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })} |
+              Bybit ask price: ${currentPairData.bybit.ask.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
             </div>
           </div>
         )}

@@ -12,7 +12,7 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterBybitAvailable, setFilterBybitAvailable] = useState<'all' | 'available' | 'unavailable'>('all');
-  const [pairsPerPage, setPairsPerPage] = useState(50);
+  const [pairsPerPage, setPairsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [newPairsAlert, setNewPairsAlert] = useState<string[]>([]);
 
@@ -84,6 +84,11 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
     }
   };
 
+  // Function to remove /USDT suffix from pair names
+  const formatPairName = (pairName: string): string => {
+    return pairName.replace(/\/USDT$/, '');
+  };
+
   // Debug: Log data to console to see what we're receiving
   console.log('Debug - fundingRates:', fundingRates.length, 'filteredAndSorted:', filteredAndSorted.length, 'filterBybitAvailable:', filterBybitAvailable);
   if (fundingRates.length > 0) {
@@ -104,14 +109,14 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
             </div>
             {arbitrageData?.metadata && (
               <div className="text-sm text-text-secondary">
-                <span className="text-blue-400 font-semibold">HyperLiquid:</span> {arbitrageData.metadata.positive_funding_pairs} positive funding pairs
+                <span className="text-cyan-400 font-semibold">HyperLiquid:</span> {arbitrageData.metadata.positive_funding_pairs} positive funding pairs
                 {' • '}
-                <span className="text-yellow-400 font-semibold">Bybit:</span> {arbitrageData.metadata.bybit_available_pairs} spot pairs available
+                <span className="text-orange-400 font-semibold">Bybit:</span> {arbitrageData.metadata.bybit_available_pairs} spot pairs available
               </div>
             )}
             {arbitrageData?.metadata?.real_time_monitoring && (
               <div className="text-xs text-success">
-                🔄 Auto-refresh every 10 seconds
+                🔄 Auto-refresh every 1 minute
               </div>
             )}
           </div>
@@ -122,7 +127,7 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
       {newPairsAlert.length > 0 && (
         <div className="mb-4 p-3 bg-success/20 border border-success/30 rounded-lg">
           <div className="text-success text-sm font-medium">
-            🚀 New positive funding pairs detected: {newPairsAlert.join(', ')}
+            🚀 New positive funding pairs detected: {newPairsAlert.map(formatPairName).join(', ')}
           </div>
         </div>
       )}
@@ -162,6 +167,7 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
           }}
           className="px-4 py-2 bg-tertiary border border-white/10 rounded-lg text-white focus:border-accent focus:outline-none"
         >
+          <option value={10}>10 per page</option>
           <option value={25}>25 per page</option>
           <option value={50}>50 per page</option>
           <option value={100}>100 per page</option>
@@ -192,17 +198,17 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
             <button
               onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
-              className="px-3 py-1 bg-tertiary border border-white/10 rounded text-white disabled:opacity-50 hover:bg-white/5"
+              className="px-3 py-1 bg-cyan-600/20 border border-cyan-400/30 rounded text-cyan-200 disabled:opacity-50 disabled:text-gray-500 hover:bg-cyan-600/30 transition-colors"
             >
               Previous
             </button>
-            <span className="text-white">
+            <span className="text-white px-3 py-1 bg-gray-600/20 rounded border border-gray-500/30">
               Page {currentPage} of {totalPages}
             </span>
             <button
               onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
-              className="px-3 py-1 bg-tertiary border border-white/10 rounded text-white disabled:opacity-50 hover:bg-white/5"
+              className="px-3 py-1 bg-cyan-600/20 border border-cyan-400/30 rounded text-cyan-200 disabled:opacity-50 disabled:text-gray-500 hover:bg-cyan-600/30 transition-colors"
             >
               Next
             </button>
@@ -212,7 +218,7 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
 
       {isLoading && !arbitrageData && (
         <div className="text-center py-8">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
           <p className="text-text-secondary mt-2">Loading arbitrage data...</p>
         </div>
       )}
@@ -223,7 +229,7 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
           <p className="text-text-secondary mb-4">{error}</p>
           <button
             onClick={reconnect}
-            className="bg-accent text-background px-4 py-2 rounded-lg hover:bg-accent/80 transition-colors"
+            className="bg-cyan-500 text-black px-4 py-2 rounded-lg hover:bg-cyan-400 transition-colors font-semibold"
           >
             Try Again
           </button>
@@ -264,51 +270,51 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
                 {/* HyperLiquid Columns */}
                 <th 
                   onClick={() => handleSort('pair')}
-                  className="text-left py-3 px-3 text-xs font-medium text-accent cursor-pointer hover:text-white transition-colors bg-blue-900/20"
+                  className="text-left py-3 px-3 text-xs font-bold text-black cursor-pointer hover:text-gray-800 transition-colors bg-cyan-400 border-r border-cyan-500"
                 >
-                  HyperLiquid Pair {sortField === 'pair' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  HyperLiquid Pair (USDT) {sortField === 'pair' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="text-right py-3 px-3 text-xs font-medium text-accent bg-blue-900/20">
+                <th className="text-right py-3 px-3 text-xs font-bold text-black bg-cyan-400 border-r border-cyan-500">
                   HL Buy Price
                 </th>
-                <th className="text-right py-3 px-3 text-xs font-medium text-accent bg-blue-900/20">
+                <th className="text-right py-3 px-3 text-xs font-bold text-black bg-cyan-400 border-r border-cyan-500">
                   HL Size
                 </th>
-                <th className="text-right py-3 px-3 text-xs font-medium text-accent bg-blue-900/20">
+                <th className="text-right py-3 px-3 text-xs font-bold text-black bg-cyan-400 border-r border-cyan-500">
                   HL Sell Price
                 </th>
-                <th className="text-right py-3 px-3 text-xs font-medium text-accent bg-blue-900/20">
+                <th className="text-right py-3 px-3 text-xs font-bold text-black bg-cyan-400 border-r border-cyan-500">
                   HL Size
                 </th>
-                <th className="text-right py-3 px-3 text-xs font-medium text-accent bg-blue-900/20">
+                <th className="text-right py-3 px-3 text-xs font-bold text-black bg-cyan-400 border-r border-cyan-500">
                   HL 24h Volume
                 </th>
                 <th 
                   onClick={() => handleSort('funding_rate')}
-                  className="text-right py-3 px-3 text-xs font-medium text-accent cursor-pointer hover:text-white transition-colors bg-blue-900/20"
+                  className="text-right py-3 px-3 text-xs font-bold text-black cursor-pointer hover:text-gray-800 transition-colors bg-cyan-400 border-r border-cyan-500"
                 >
                   HL Hourly Rate {sortField === 'funding_rate' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="text-right py-3 px-3 text-xs font-medium text-accent bg-blue-900/20">
+                <th className="text-right py-3 px-3 text-xs font-bold text-black bg-cyan-400 border-r-2 border-cyan-600">
                   HL Annual Rate
                 </th>
                 
                 {/* Bybit Columns */}
-                <th className="text-right py-3 px-3 text-xs font-medium text-accent bg-yellow-900/20">
+                <th className="text-right py-3 px-3 text-xs font-bold text-black bg-orange-400 border-r border-orange-500">
                   Bybit Buy Price
                 </th>
-                <th className="text-right py-3 px-3 text-xs font-medium text-accent bg-yellow-900/20">
+                <th className="text-right py-3 px-3 text-xs font-bold text-black bg-orange-400 border-r border-orange-500">
                   Bybit Sell Price
                 </th>
-                <th className="text-right py-3 px-3 text-xs font-medium text-accent bg-yellow-900/20">
+                <th className="text-right py-3 px-3 text-xs font-bold text-black bg-orange-400 border-r border-orange-500">
                   Bybit 24h Volume
                 </th>
-                <th className="text-right py-3 px-3 text-xs font-medium text-accent bg-yellow-900/20">
+                <th className="text-right py-3 px-3 text-xs font-bold text-black bg-orange-400 border-r-2 border-orange-600">
                   Bybit Spread %
                 </th>
                 
                 {/* Actions */}
-                <th className="text-center py-3 px-3 text-xs font-medium text-accent">
+                <th className="text-center py-3 px-3 text-xs font-bold text-black bg-gray-400 border border-gray-500">
                   Next Funding
                 </th>
               </tr>
@@ -329,40 +335,40 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
                     }`}
                   >
                     {/* HyperLiquid Data */}
-                    <td className="py-3 px-3 text-white font-medium bg-blue-900/10">
-                      {rate.pair}
+                    <td className="py-3 px-3 text-white font-medium bg-cyan-600/10">
+                      {formatPairName(rate.pair)}
                       {newPairsAlert.includes(rate.pair) && (
                         <span className="ml-2 text-success text-xs">NEW</span>
                       )}
                     </td>
-                    <td className="py-3 px-3 text-right text-white font-mono bg-blue-900/10">
+                    <td className="py-3 px-3 text-right text-white font-mono bg-cyan-600/10">
                       ${rate.hyperliquid.bid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
                     </td>
-                    <td className="py-3 px-3 text-right text-text-secondary font-mono bg-blue-900/10">
+                    <td className="py-3 px-3 text-right text-text-secondary font-mono bg-cyan-600/10">
                       {rate.hyperliquid.bid_size.toFixed(1)}
                     </td>
-                    <td className="py-3 px-3 text-right text-white font-mono bg-blue-900/10">
+                    <td className="py-3 px-3 text-right text-white font-mono bg-cyan-600/10">
                       ${rate.hyperliquid.ask.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
                     </td>
-                    <td className="py-3 px-3 text-right text-text-secondary font-mono bg-blue-900/10">
+                    <td className="py-3 px-3 text-right text-text-secondary font-mono bg-cyan-600/10">
                       {rate.hyperliquid.ask_size.toFixed(1)}
                     </td>
-                    <td className="py-3 px-3 text-right text-white bg-blue-900/10">
+                    <td className="py-3 px-3 text-right text-white bg-cyan-600/10">
                       {formatVolume(rate.hyperliquid.volume)}
                     </td>
-                    <td className={`py-3 px-3 text-right font-mono bg-blue-900/10 ${
+                    <td className={`py-3 px-3 text-right font-mono bg-cyan-600/10 ${
                       rate.funding_rate > 0 ? 'text-success' : 'text-error'
                     }`}>
                       {(rate.funding_rate * 100).toFixed(4)}%
                     </td>
-                    <td className={`py-3 px-3 text-right font-mono bg-blue-900/10 ${
+                    <td className={`py-3 px-3 text-right font-mono bg-cyan-600/10 ${
                       rate.annual_funding_rate > 0 ? 'text-success' : 'text-error'
                     }`}>
                       {rate.annual_funding_rate.toFixed(1)}%
                     </td>
                     
                     {/* Bybit Data */}
-                    <td className="py-3 px-3 text-right font-mono bg-yellow-900/10">
+                    <td className="py-3 px-3 text-right font-mono bg-orange-600/10">
                       {rate.bybit.available ? (
                         <span className="text-white">
                           ${rate.bybit.bid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
@@ -371,7 +377,7 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
                         <span className="text-error">N/A</span>
                       )}
                     </td>
-                    <td className="py-3 px-3 text-right font-mono bg-yellow-900/10">
+                    <td className="py-3 px-3 text-right font-mono bg-orange-600/10">
                       {rate.bybit.available ? (
                         <span className="text-white">
                           ${rate.bybit.ask.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
@@ -380,14 +386,14 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
                         <span className="text-error">N/A</span>
                       )}
                     </td>
-                    <td className="py-3 px-3 text-right bg-yellow-900/10">
+                    <td className="py-3 px-3 text-right bg-orange-600/10">
                       {rate.bybit.available ? (
                         <span className="text-white">{formatVolume(rate.bybit.volume)}</span>
                       ) : (
                         <span className="text-error">N/A</span>
                       )}
                     </td>
-                    <td className="py-3 px-3 text-right font-mono bg-yellow-900/10">
+                    <td className="py-3 px-3 text-right font-mono bg-orange-600/10">
                       {rate.bybit.available ? (
                         <span className={`${bybitSpread < 0.1 ? 'text-success' : bybitSpread < 0.5 ? 'text-yellow-400' : 'text-error'}`}>
                           {bybitSpread.toFixed(3)}%
@@ -415,31 +421,31 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
           <button
             onClick={() => setCurrentPage(1)}
             disabled={currentPage === 1}
-            className="px-3 py-1 bg-tertiary border border-white/10 rounded text-white disabled:opacity-50 hover:bg-white/5"
+            className="px-3 py-1 bg-cyan-600/20 border border-cyan-400/30 rounded text-cyan-200 disabled:opacity-50 disabled:text-gray-500 hover:bg-cyan-600/30 transition-colors"
           >
             First
           </button>
           <button
             onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
             disabled={currentPage === 1}
-            className="px-3 py-1 bg-tertiary border border-white/10 rounded text-white disabled:opacity-50 hover:bg-white/5"
+            className="px-3 py-1 bg-cyan-600/20 border border-cyan-400/30 rounded text-cyan-200 disabled:opacity-50 disabled:text-gray-500 hover:bg-cyan-600/30 transition-colors"
           >
             Previous
           </button>
-          <span className="text-white px-4">
+          <span className="text-white px-4 py-1 bg-gray-600/20 rounded border border-gray-500/30">
             Page {currentPage} of {totalPages}
           </span>
           <button
             onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
             disabled={currentPage === totalPages}
-            className="px-3 py-1 bg-tertiary border border-white/10 rounded text-white disabled:opacity-50 hover:bg-white/5"
+            className="px-3 py-1 bg-cyan-600/20 border border-cyan-400/30 rounded text-cyan-200 disabled:opacity-50 disabled:text-gray-500 hover:bg-cyan-600/30 transition-colors"
           >
             Next
           </button>
           <button
             onClick={() => setCurrentPage(totalPages)}
             disabled={currentPage === totalPages}
-            className="px-3 py-1 bg-tertiary border border-white/10 rounded text-white disabled:opacity-50 hover:bg-white/5"
+            className="px-3 py-1 bg-cyan-600/20 border border-cyan-400/30 rounded text-cyan-200 disabled:opacity-50 disabled:text-gray-500 hover:bg-cyan-600/30 transition-colors"
           >
             Last
           </button>

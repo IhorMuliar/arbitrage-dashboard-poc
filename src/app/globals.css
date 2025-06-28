@@ -5,7 +5,7 @@
   --foreground: #ffffff;
   --secondary-bg: #1a1a1a;
   --tertiary-bg: #2a2a2a;
-  --accent: #00F;
+  --accent: #00ffff;
   --success: #00ff88;
   --warning: #ffff00;
   --error: #ff0044;
@@ -53,13 +53,13 @@ body {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
-/* Electric blue glow effects */
+/* Electric cyan glow effects */
 .neon-glow {
-  box-shadow: 0 0 20px rgba(0, 0, 255, 0.3);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
 }
 
 .neon-glow:hover {
-  box-shadow: 0 0 30px rgba(0, 0, 255, 0.5);
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
 }
 
 /* Scrollbar styling */
