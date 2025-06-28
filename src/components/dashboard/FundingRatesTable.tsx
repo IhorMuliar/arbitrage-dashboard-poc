@@ -95,7 +95,7 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-xl font-bold text-white">
-            Arbitrage Opportunities Dashboard - Real-time
+            Combined Exchange Data - Real-time Arbitrage Dashboard
           </h2>
           <div className="flex items-center gap-4 mt-2">
             <div className={`flex items-center gap-2 text-sm ${isConnected ? 'text-success' : 'text-error'}`}>
@@ -104,14 +104,14 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
             </div>
             {arbitrageData?.metadata && (
               <div className="text-sm text-text-secondary">
-                <span className="text-accent font-semibold">{arbitrageData.metadata.positive_funding_pairs}</span> positive funding pairs
+                <span className="text-blue-400 font-semibold">HyperLiquid:</span> {arbitrageData.metadata.positive_funding_pairs} positive funding pairs
                 {' • '}
-                <span className="text-success font-semibold">{arbitrageData.metadata.bybit_available_pairs}</span> available on Bybit
+                <span className="text-yellow-400 font-semibold">Bybit:</span> {arbitrageData.metadata.bybit_available_pairs} spot pairs available
               </div>
             )}
             {arbitrageData?.metadata?.real_time_monitoring && (
               <div className="text-xs text-success">
-                🔄 Auto-refresh every 1 minute
+                🔄 Auto-refresh every 10 seconds
               </div>
             )}
           </div>
@@ -258,80 +258,152 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
 
       {paginatedData.length > 0 && (
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/10">
+                {/* HyperLiquid Columns */}
                 <th 
                   onClick={() => handleSort('pair')}
-                  className="text-left py-3 px-4 text-sm font-medium text-accent cursor-pointer hover:text-white transition-colors"
+                  className="text-left py-3 px-3 text-xs font-medium text-accent cursor-pointer hover:text-white transition-colors bg-blue-900/20"
                 >
-                  Trading Pair {sortField === 'pair' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  HyperLiquid Pair {sortField === 'pair' && (sortDirection === 'asc' ? '↑' : '↓')}
+                </th>
+                <th className="text-right py-3 px-3 text-xs font-medium text-accent bg-blue-900/20">
+                  HL Buy Price
+                </th>
+                <th className="text-right py-3 px-3 text-xs font-medium text-accent bg-blue-900/20">
+                  HL Size
+                </th>
+                <th className="text-right py-3 px-3 text-xs font-medium text-accent bg-blue-900/20">
+                  HL Sell Price
+                </th>
+                <th className="text-right py-3 px-3 text-xs font-medium text-accent bg-blue-900/20">
+                  HL Size
+                </th>
+                <th className="text-right py-3 px-3 text-xs font-medium text-accent bg-blue-900/20">
+                  HL 24h Volume
                 </th>
                 <th 
                   onClick={() => handleSort('funding_rate')}
-                  className="text-right py-3 px-4 text-sm font-medium text-accent cursor-pointer hover:text-white transition-colors"
+                  className="text-right py-3 px-3 text-xs font-medium text-accent cursor-pointer hover:text-white transition-colors bg-blue-900/20"
                 >
-                  Funding Rate {sortField === 'funding_rate' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  HL Hourly Rate {sortField === 'funding_rate' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="text-center py-3 px-4 text-sm font-medium text-accent">
+                <th className="text-right py-3 px-3 text-xs font-medium text-accent bg-blue-900/20">
+                  HL Annual Rate
+                </th>
+                
+                {/* Bybit Columns */}
+                <th className="text-right py-3 px-3 text-xs font-medium text-accent bg-yellow-900/20">
+                  Bybit Buy Price
+                </th>
+                <th className="text-right py-3 px-3 text-xs font-medium text-accent bg-yellow-900/20">
+                  Bybit Sell Price
+                </th>
+                <th className="text-right py-3 px-3 text-xs font-medium text-accent bg-yellow-900/20">
+                  Bybit 24h Volume
+                </th>
+                <th className="text-right py-3 px-3 text-xs font-medium text-accent bg-yellow-900/20">
+                  Bybit Spread %
+                </th>
+                
+                {/* Actions */}
+                <th className="text-center py-3 px-3 text-xs font-medium text-accent">
                   Next Funding
-                </th>
-                <th className="text-center py-3 px-4 text-sm font-medium text-accent">
-                  Bybit Spot
-                </th>
-                <th className="text-right py-3 px-4 text-sm font-medium text-accent">
-                  Volume (24h)
                 </th>
               </tr>
             </thead>
             <tbody>
-              {paginatedData.map((rate) => (
-                <tr
-                  key={rate.pair}
-                  onClick={() => onPairSelect(rate.pair)}
-                  className={`border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors group ${
-                    newPairsAlert.includes(rate.pair) ? 'bg-success/5' : ''
-                  }`}
-                >
-                  <td className="py-4 px-4 text-white font-medium">
-                    {rate.pair}
-                    {newPairsAlert.includes(rate.pair) && (
-                      <span className="ml-2 text-success text-xs">NEW</span>
-                    )}
-                  </td>
-                  <td className={`py-4 px-4 text-right font-mono ${
-                    rate.funding_rate > 0 ? 'text-success' : 'text-error'
-                  }`}>
-                    <div>{(rate.funding_rate * 100).toFixed(4)}%</div>
-                    <div className="text-xs text-text-secondary">
-                      {rate.annual_funding_rate.toFixed(1)}% APY
-                    </div>
-                  </td>
-                  <td className="py-4 px-4 text-center">
-                    <CountdownTimer targetTime={rate.next_funding_time} />
-                  </td>
-                  <td className="py-4 px-4 text-center">
-                    <span className={`text-lg ${rate.bybit.available ? 'text-success' : 'text-error'}`}>
-                      {rate.bybit.available ? '✓' : '✗'}
-                    </span>
-                    {rate.bybit.available && (
-                      <div className="text-xs text-text-secondary">
-                        ${rate.bybit.last.toFixed(2)}
-                      </div>
-                    )}
-                  </td>
-                  <td className="py-4 px-4 text-right text-sm">
-                    <div className="text-white">
+              {paginatedData.map((rate) => {
+                // Calculate Bybit spread percentage
+                const bybitSpread = rate.bybit.available && rate.bybit.ask > 0 && rate.bybit.bid > 0
+                  ? ((rate.bybit.ask - rate.bybit.bid) / rate.bybit.bid) * 100
+                  : 0;
+
+                return (
+                  <tr
+                    key={rate.pair}
+                    onClick={() => onPairSelect(rate.pair)}
+                    className={`border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors group ${
+                      newPairsAlert.includes(rate.pair) ? 'bg-success/5' : ''
+                    }`}
+                  >
+                    {/* HyperLiquid Data */}
+                    <td className="py-3 px-3 text-white font-medium bg-blue-900/10">
+                      {rate.pair}
+                      {newPairsAlert.includes(rate.pair) && (
+                        <span className="ml-2 text-success text-xs">NEW</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3 text-right text-white font-mono bg-blue-900/10">
+                      ${rate.hyperliquid.bid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                    </td>
+                    <td className="py-3 px-3 text-right text-text-secondary font-mono bg-blue-900/10">
+                      {rate.hyperliquid.bid_size.toFixed(1)}
+                    </td>
+                    <td className="py-3 px-3 text-right text-white font-mono bg-blue-900/10">
+                      ${rate.hyperliquid.ask.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                    </td>
+                    <td className="py-3 px-3 text-right text-text-secondary font-mono bg-blue-900/10">
+                      {rate.hyperliquid.ask_size.toFixed(1)}
+                    </td>
+                    <td className="py-3 px-3 text-right text-white bg-blue-900/10">
                       {formatVolume(rate.hyperliquid.volume)}
-                    </div>
-                    {rate.bybit.available && (
-                      <div className="text-text-secondary text-xs">
-                        Bybit: {formatVolume(rate.bybit.volume)}
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className={`py-3 px-3 text-right font-mono bg-blue-900/10 ${
+                      rate.funding_rate > 0 ? 'text-success' : 'text-error'
+                    }`}>
+                      {(rate.funding_rate * 100).toFixed(4)}%
+                    </td>
+                    <td className={`py-3 px-3 text-right font-mono bg-blue-900/10 ${
+                      rate.annual_funding_rate > 0 ? 'text-success' : 'text-error'
+                    }`}>
+                      {rate.annual_funding_rate.toFixed(1)}%
+                    </td>
+                    
+                    {/* Bybit Data */}
+                    <td className="py-3 px-3 text-right font-mono bg-yellow-900/10">
+                      {rate.bybit.available ? (
+                        <span className="text-white">
+                          ${rate.bybit.bid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                        </span>
+                      ) : (
+                        <span className="text-error">N/A</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3 text-right font-mono bg-yellow-900/10">
+                      {rate.bybit.available ? (
+                        <span className="text-white">
+                          ${rate.bybit.ask.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                        </span>
+                      ) : (
+                        <span className="text-error">N/A</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3 text-right bg-yellow-900/10">
+                      {rate.bybit.available ? (
+                        <span className="text-white">{formatVolume(rate.bybit.volume)}</span>
+                      ) : (
+                        <span className="text-error">N/A</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3 text-right font-mono bg-yellow-900/10">
+                      {rate.bybit.available ? (
+                        <span className={`${bybitSpread < 0.1 ? 'text-success' : bybitSpread < 0.5 ? 'text-yellow-400' : 'text-error'}`}>
+                          {bybitSpread.toFixed(3)}%
+                        </span>
+                      ) : (
+                        <span className="text-error">N/A</span>
+                      )}
+                    </td>
+                    
+                    {/* Next Funding */}
+                    <td className="py-3 px-3 text-center">
+                      <CountdownTimer targetTime={rate.next_funding_time} />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

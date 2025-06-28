@@ -175,7 +175,7 @@ export default function Dashboard() {
               {activeTab === 'backtesting' && 'Backtesting'}
             </h1>
             <p className="text-text-secondary">
-              {activeTab === 'manual' && 'Execute arbitrage trades manually between HyperLiquid and Bybit'}
+              {activeTab === 'manual' && 'View comprehensive data from HyperLiquid and Bybit exchanges to execute arbitrage trades manually'}
               {activeTab === 'automatic' && 'Set up automated trading strategies for continuous arbitrage'}
               {activeTab === 'backtesting' && 'Test and optimize your trading strategies with historical data'}
             </p>
