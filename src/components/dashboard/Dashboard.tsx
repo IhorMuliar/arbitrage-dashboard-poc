@@ -5,6 +5,7 @@ import Sidebar from './Sidebar';
 import FundingRatesTable from './FundingRatesTable';
 import TradeSetupPanel from './TradeSetupPanel';
 import ActivePositionsMonitor from './ActivePositionsMonitor';
+import ClosedPositions from './ClosedPositions';
 
 interface Position {
   id: string;
@@ -128,6 +129,9 @@ export default function Dashboard() {
               onClosePosition={handleClosePosition}
               onModifyPosition={handleModifyPosition}
             />
+            
+            {/* Closed Positions */}
+            <ClosedPositions />
           </div>
         );
       
@@ -146,7 +150,7 @@ export default function Dashboard() {
       case 'backtesting':
         return (
           <div className="glass-card rounded-xl p-8 text-center">
-            <div className="text-6xl mb-4">📈</div>
+            <div className="text-6xl mb-4">⚡</div>
             <h2 className="text-2xl font-bold text-white mb-2">Backtesting</h2>
             <p className="text-text-secondary">
               Test your arbitrage strategies against historical data. 

@@ -1,237 +1,386 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-
-interface Position {
-  id: string;
-  pair: string;
-  entryTime: Date;
-  currentPnL: number;
-  status: 'Opening' | 'Active' | 'Closing' | 'Closed';
-  amount: number;
-  entryPrice: {
-    hyperliquid: number;
-    bybit: number;
-  };
-  currentPrice: {
-    hyperliquid: number;
-    bybit: number;
-  };
-}
+import { useSharedWebSocket } from '../../hooks/useWebSocket';
+import { useTradingAPI, Position } from '../../hooks/useTradingAPI';
 
 interface ActivePositionsMonitorProps {
-  positions: Position[];
-  onClosePosition: (positionId: string) => void;
-  onModifyPosition: (positionId: string) => void;
+  positions?: any[]; // Keep for backward compatibility but will use real data
+  onClosePosition?: (positionId: string) => void;
+  onModifyPosition?: (positionId: string) => void;
 }
 
-export default function ActivePositionsMonitor({ 
-  positions, 
-  onClosePosition, 
-  onModifyPosition 
-}: ActivePositionsMonitorProps) {
-  const [isExpanded, setIsExpanded] = useState(positions.length > 0);
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6
+  }).format(value);
+};
 
-  // Auto-expand when first position is added
+const formatPercentage = (value: number) => {
+  const sign = value >= 0 ? '+' : '';
+  return `${sign}${value.toFixed(3)}%`;
+};
+
+const formatPairName = (pair: string) => {
+  return pair.replace('/USDT', '').replace('-USD', '');
+};
+
+export default function ActivePositionsMonitor({ onClosePosition, onModifyPosition }: ActivePositionsMonitorProps) {
+  const { activePositions, isConnected, error: wsError } = useSharedWebSocket();
+  const { closePosition } = useTradingAPI();
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [closingPositions, setClosingPositions] = useState<Set<string>>(new Set());
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Update loading state when WebSocket connects and positions are received
   useEffect(() => {
-    if (positions.length > 0 && !isExpanded) {
-      setIsExpanded(true);
+    if (isConnected) {
+      setIsLoading(false);
+      setError(wsError);
+    } else {
+      setIsLoading(true);
+      setError(null);
     }
-  }, [positions.length, isExpanded]);
+  }, [isConnected, wsError]);
 
-  const totalPnL = positions.reduce((sum, pos) => sum + pos.currentPnL, 0);
-  const activePositions = positions.filter(pos => pos.status === 'Active');
+  // Simulate periodic refresh indicator
+  useEffect(() => {
+    if (!isConnected) return;
+    
+    const interval = setInterval(() => {
+      setIsRefreshing(true);
+      setTimeout(() => setIsRefreshing(false), 1000); // Show for 1 second
+    }, 15000); // Every 15 seconds
+    
+    return () => clearInterval(interval);
+  }, [isConnected]);
+
+  const handleClosePosition = async (position: Position) => {
+    const positionKey = position.symbol;
+    
+    try {
+      setClosingPositions(prev => new Set(prev).add(positionKey));
+      
+      const result = await closePosition(position.symbol, 100);
+      
+      if (result.success) {
+        // Position will be automatically removed from activePositions via WebSocket update
+        
+        // Call original callback if provided
+        if (onClosePosition) {
+          onClosePosition(positionKey);
+        }
+        
+        console.log('✅ Position closed successfully:', result.message);
+      } else {
+        setError(result.error || result.message);
+        console.error('❌ Failed to close position:', result.error || result.message);
+      }
+    } catch (err) {
+      setError('Failed to close position');
+      console.error('Error closing position:', err);
+    } finally {
+      setClosingPositions(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(positionKey);
+        return newSet;
+      });
+    }
+  };
+
+  const getRiskColor = (riskPct: number) => {
+    if (riskPct < 5) return 'text-red-400';
+    if (riskPct < 15) return 'text-yellow-400';
+    return 'text-green-400';
+  };
+
+  const getPnLColor = (pnl: number) => {
+    if (pnl > 0) return 'text-green-400';
+    if (pnl < 0) return 'text-red-400';
+    return 'text-gray-400';
+  };
+
+  if (!isConnected) {
+    return (
+      <div className="glass-card rounded-xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-white">Active Positions</h2>
+          <div className="text-sm text-warning bg-warning/10 px-3 py-1 rounded">
+            Establishing connection...
+          </div>
+        </div>
+        <div className="text-center py-8 text-text-secondary">
+          <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          Establishing connection...
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="glass-card rounded-xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-white">Active Positions</h2>
+          <div className="text-sm text-cyan-400 bg-cyan-400/10 px-3 py-1 rounded">
+            Loading positions...
+          </div>
+        </div>
+        <div className="text-center py-8 text-text-secondary">
+          <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          Fetching active positions...
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="glass-card rounded-xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-white">Active Positions</h2>
+          <div className="text-sm text-red-400 bg-red-400/10 px-3 py-1 rounded">
+            Error loading positions
+          </div>
+        </div>
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+          <div className="flex items-center gap-2 text-red-400">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="font-medium">Failed to Load Positions</span>
+          </div>
+          <p className="text-red-300 text-sm mt-2">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (activePositions.length === 0) {
+    return (
+      <div className="glass-card rounded-xl p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-bold text-white">Active Positions</h2>
+            <div className="flex items-center gap-2 text-green-400">
+              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              <span className="text-sm">💼 Live Updates</span>
+            </div>
+            <div className={`text-xs bg-success/10 px-2 py-1 rounded transition-all duration-300 ${
+              isRefreshing ? 'text-cyan-400 bg-cyan-400/20' : 'text-success'
+            }`}>
+              {isRefreshing ? (
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 border border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+                  <span>Refreshing positions...</span>
+                </div>
+              ) : (
+                <span>🔄 Auto-refresh every 15s</span>
+              )}
+            </div>
+          </div>
+          
+          <div className="text-sm text-text-secondary bg-white/5 px-3 py-1 rounded">
+            {activePositions.length} positions
+          </div>
+        </div>
+        <div className="text-center py-12">
+          <div className="text-6xl mb-4">💼</div>
+          <h3 className="text-lg font-medium text-white mb-2">No Active Positions</h3>
+          <p className="text-text-secondary">
+            Execute your first arbitrage trade to see positions here
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="glass-card rounded-xl overflow-hidden">
-      {/* Header */}
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between p-6 hover:bg-white/5 transition-colors"
-      >
+    <div className="glass-card rounded-xl p-6">
+      <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           <h2 className="text-xl font-bold text-white">Active Positions</h2>
-          {positions.length > 0 && (
-            <span className="px-3 py-1 bg-accent/20 text-accent rounded-full text-sm font-medium">
-              {activePositions.length} Active
-            </span>
-          )}
+          <div className="flex items-center gap-2 text-green-400">
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+            <span className="text-sm">💼 Live Updates</span>
+          </div>
+          <div className={`text-xs bg-success/10 px-2 py-1 rounded transition-all duration-300 ${
+            isRefreshing ? 'text-cyan-400 bg-cyan-400/20' : 'text-success'
+          }`}>
+            {isRefreshing ? (
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 border border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+                <span>Refreshing positions...</span>
+              </div>
+            ) : (
+              <span>🔄 Auto-refresh every 15s</span>
+            )}
+          </div>
         </div>
         
-        <div className="flex items-center gap-4">
-          {positions.length > 0 && (
-            <div className="text-right">
-              <div className="text-sm text-text-secondary">Total P&L</div>
-              <div className={`text-lg font-mono font-bold ${
-                totalPnL >= 0 ? 'text-success' : 'text-error'
-              }`}>
-                {totalPnL >= 0 ? '+' : ''}${totalPnL.toFixed(2)}
-              </div>
-            </div>
-          )}
-          
-          <div className={`transform transition-transform duration-200 ${
-            isExpanded ? 'rotate-180' : ''
-          }`}>
-            <svg className="w-5 h-5 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
+        <div className="text-sm text-text-secondary bg-white/5 px-3 py-1 rounded">
+          {activePositions.length} active position{activePositions.length !== 1 ? 's' : ''}
         </div>
-      </button>
+      </div>
 
-      {/* Content */}
-      <div className={`transition-all duration-300 ease-in-out ${
-        isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
-      } overflow-hidden`}>
-        {positions.length === 0 ? (
-          <div className="p-6 pt-0">
-            <div className="text-center py-8 text-text-secondary">
-              <div className="text-4xl mb-2">📊</div>
-              <div className="text-lg">No active positions</div>
-              <div className="text-sm">Execute your first arbitrage trade to see positions here</div>
-            </div>
-          </div>
-        ) : (
-          <div className="px-6 pb-6">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-white/10">
-                    <th className="text-left py-3 px-2 text-sm font-medium text-accent">
-                      Position ID
-                    </th>
-                    <th className="text-left py-3 px-2 text-sm font-medium text-accent">
-                      Pair
-                    </th>
-                    <th className="text-left py-3 px-2 text-sm font-medium text-accent">
-                      Entry Time
-                    </th>
-                    <th className="text-right py-3 px-2 text-sm font-medium text-accent">
-                      Current P&L
-                    </th>
-                    <th className="text-center py-3 px-2 text-sm font-medium text-accent">
-                      Status
-                    </th>
-                    <th className="text-center py-3 px-2 text-sm font-medium text-accent">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {positions.map((position) => (
-                    <tr key={position.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                      <td className="py-4 px-2 text-white font-mono text-sm">
-                        {position.id}
-                      </td>
-                      <td className="py-4 px-2 text-white font-medium">
-                        {position.pair}
-                      </td>
-                      <td className="py-4 px-2 text-text-secondary text-sm">
-                        <RelativeTime date={position.entryTime} />
-                      </td>
-                      <td className={`py-4 px-2 text-right font-mono font-bold ${
-                        position.currentPnL >= 0 ? 'text-success' : 'text-error'
-                      }`}>
-                        {position.currentPnL >= 0 ? '+' : ''}${position.currentPnL.toFixed(2)}
-                      </td>
-                      <td className="py-4 px-2 text-center">
-                        <StatusBadge status={position.status} />
-                      </td>
-                      <td className="py-4 px-2">
-                        <div className="flex justify-center gap-2">
-                          <button
-                            onClick={() => onModifyPosition(position.id)}
-                            disabled={position.status !== 'Active'}
-                            className="px-3 py-1 bg-white/10 border border-white/20 rounded text-xs text-white hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Modify
-                          </button>
-                          <button
-                            onClick={() => onClosePosition(position.id)}
-                            disabled={position.status === 'Closing' || position.status === 'Closed'}
-                            className="px-3 py-1 bg-error/20 border border-error/40 rounded text-xs text-error hover:bg-error/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Close
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+      <div className="space-y-4">
+        {activePositions.map((position) => {
+          const isClosing = closingPositions.has(position.symbol);
+          const pairName = formatPairName(position.symbol);
+          
+          return (
+            <div key={position.symbol} className="bg-white/5 rounded-lg border border-white/10 p-4">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="text-lg font-bold text-white">{pairName}</div>
+                  <div className={`px-2 py-1 rounded text-xs font-medium ${
+                    position.status === 'active' 
+                      ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                      : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                  }`}>
+                    {position.status.toUpperCase()}
+                  </div>
+                  <div className="text-sm text-text-secondary">
+                    ${position.usdt_amount.toLocaleString()} USDT
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => onModifyPosition && onModifyPosition(position.symbol)}
+                    className="px-3 py-1 text-sm bg-white/10 hover:bg-white/20 text-white rounded transition-colors"
+                  >
+                    Modify
+                  </button>
+                  <button
+                    onClick={() => handleClosePosition(position)}
+                    disabled={isClosing}
+                    className="px-3 py-1 text-sm bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                  >
+                    {isClosing ? (
+                      <>
+                        <div className="w-3 h-3 border border-red-400 border-t-transparent rounded-full animate-spin"></div>
+                        Closing...
+                      </>
+                    ) : (
+                      'Close'
+                    )}
+                  </button>
+                </div>
+              </div>
 
-            {/* Position Details */}
-            {positions.length > 0 && (
-              <div className="mt-4 p-4 bg-white/5 rounded-lg border border-white/10">
-                <h4 className="text-sm font-medium text-white mb-3">Quick Stats</h4>
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <span className="text-text-secondary">Total Positions:</span>
-                    <span className="block text-white font-mono">{positions.length}</span>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                {/* HyperLiquid Side */}
+                <div className="space-y-2">
+                  <div className="text-cyan-400 font-medium">HyperLiquid (Short)</div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">Entry:</span>
+                      <span className="text-white font-mono">{formatCurrency(position.hyperliquid.entry_price)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">Size:</span>
+                      <span className="text-white font-mono">{position.hyperliquid.size.toFixed(6)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">PnL:</span>
+                      <span className={`font-mono font-bold ${getPnLColor(position.hyperliquid.unrealized_pnl)}`}>
+                        {formatCurrency(position.hyperliquid.unrealized_pnl)}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-text-secondary">Active:</span>
-                    <span className="block text-success font-mono">{activePositions.length}</span>
+                </div>
+
+                {/* Bybit Side */}
+                <div className="space-y-2">
+                  <div className="text-orange-400 font-medium">Bybit (Long)</div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">Entry:</span>
+                      <span className="text-white font-mono">{formatCurrency(position.bybit.entry_price)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">Amount:</span>
+                      <span className="text-white font-mono">{position.bybit.amount.toFixed(6)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">PnL:</span>
+                      <span className={`font-mono font-bold ${getPnLColor(position.bybit.unrealized_pnl)}`}>
+                        {formatCurrency(position.bybit.unrealized_pnl)}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-text-secondary">Total Volume:</span>
-                    <span className="block text-white font-mono">
-                      ${positions.reduce((sum, pos) => sum + pos.amount, 0).toLocaleString()}
-                    </span>
+                </div>
+
+                {/* Combined Metrics */}
+                <div className="space-y-2">
+                  <div className="text-white font-medium">Combined</div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">Total PnL:</span>
+                      <span className={`font-mono font-bold ${getPnLColor(position.total.net_pnl)}`}>
+                        {formatCurrency(position.total.net_pnl)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">Funding:</span>
+                      <span className="text-green-400 font-mono">
+                        {formatCurrency(position.total.funding_earned)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">Return:</span>
+                      <span className={`font-mono font-bold ${getPnLColor(position.total.net_pnl)}`}>
+                        {formatPercentage((position.total.net_pnl / position.usdt_amount) * 100)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Risk Metrics */}
+                <div className="space-y-2">
+                  <div className="text-white font-medium">Risk</div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">Liq. Risk:</span>
+                      <span className={`font-mono ${getRiskColor(position.hyperliquid.liquidation_risk_pct)}`}>
+                        {position.hyperliquid.liquidation_risk_pct.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">Leverage:</span>
+                      <span className="text-white font-mono">{position.hyperliquid.leverage.toFixed(1)}x</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">Funding Rate:</span>
+                      <span className="text-green-400 font-mono">
+                        {formatPercentage(position.entry_funding_rate * 100)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
-            )}
-          </div>
-        )}
+
+              {/* Time and Status */}
+              <div className="mt-4 pt-4 border-t border-white/10 flex justify-between items-center text-xs text-text-secondary">
+                <div>
+                  Entry Time: {position.entry_time ? new Date(position.entry_time).toLocaleString() : 'N/A'}
+                </div>
+                <div>
+                  Duration: {position.entry_time ? 
+                    Math.floor((Date.now() - new Date(position.entry_time).getTime()) / (1000 * 60 * 60)) + 'h' : 
+                    'N/A'
+                  }
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
-}
-
-function StatusBadge({ status }: { status: Position['status'] }) {
-  const statusConfig = {
-    Opening: { color: 'text-warning', bg: 'bg-warning/20', border: 'border-warning/40' },
-    Active: { color: 'text-success', bg: 'bg-success/20', border: 'border-success/40' },
-    Closing: { color: 'text-accent', bg: 'bg-accent/20', border: 'border-accent/40' },
-    Closed: { color: 'text-text-secondary', bg: 'bg-white/10', border: 'border-white/20' }
-  };
-
-  const config = statusConfig[status];
-
-  return (
-    <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium border ${config.color} ${config.bg} ${config.border}`}>
-      {status}
-    </span>
-  );
-}
-
-function RelativeTime({ date }: { date: Date }) {
-  const [timeAgo, setTimeAgo] = useState<string>('');
-
-  useEffect(() => {
-    const updateTimeAgo = () => {
-      const now = new Date();
-      const diff = now.getTime() - date.getTime();
-      const minutes = Math.floor(diff / (1000 * 60));
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      
-      if (minutes < 60) {
-        setTimeAgo(`${minutes}m ago`);
-      } else if (hours < 24) {
-        setTimeAgo(`${hours}h ago`);
-      } else {
-        setTimeAgo(date.toLocaleDateString());
-      }
-    };
-
-    updateTimeAgo();
-    const interval = setInterval(updateTimeAgo, 60000); // Update every minute
-
-    return () => clearInterval(interval);
-  }, [date]);
-
-  return <span>{timeAgo}</span>;
 } 

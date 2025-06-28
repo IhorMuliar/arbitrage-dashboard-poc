@@ -27,20 +27,20 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
     {
       id: 'backtesting',
       name: 'Backtesting',
-      icon: '📈',
+      icon: '⚡',
       description: 'Test strategies with historical data'
     }
   ];
 
   const getConnectionStatus = () => {
-    if (isLoading) {
-      return { status: 'connecting', color: 'text-warning', bgColor: 'bg-warning', text: 'Connecting...' };
-    }
     if (error) {
       return { status: 'error', color: 'text-error', bgColor: 'bg-error', text: 'Connection Error' };
     }
     if (isConnected) {
       return { status: 'connected', color: 'text-success', bgColor: 'bg-success', text: 'Connected' };
+    }
+    if (isLoading) {
+      return { status: 'connecting', color: 'text-warning', bgColor: 'bg-warning', text: 'Connecting...' };
     }
     return { status: 'disconnected', color: 'text-error', bgColor: 'bg-error', text: 'Disconnected' };
   };
@@ -54,11 +54,11 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         <div className="flex items-center gap-3 mb-4">
           <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center">
             <span className="text-background font-bold text-sm">IC</span>
-          </div>
+      </div>
           <div>
             <h1 className="text-xl font-bold text-white">ICON Trading</h1>
             <p className="text-sm text-text-secondary">Arbitrage Dashboard</p>
-          </div>
+      </div>
         </div>
         
         {/* Connection Status */}
@@ -71,7 +71,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           
           {/* Exchange Status - only show when connected */}
           {isConnected && (
-            <div className="space-y-2">
+        <div className="space-y-2">
               <div className="text-sm font-medium text-text-secondary">Exchange Status</div>
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-sm">
@@ -104,15 +104,15 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
       <div className="flex-1 p-6">
         <div className="space-y-2">
           {tabs.map((tab) => (
-            <button
+    <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
               className={`w-full text-left p-4 rounded-lg transition-all duration-200 group ${
                 activeTab === tab.id
                   ? 'bg-accent text-background shadow-lg'
-                  : 'text-text-secondary hover:bg-white/5 hover:text-white'
-              }`}
-            >
+          : 'text-text-secondary hover:bg-white/5 hover:text-white'
+      }`}
+    >
               <div className="flex items-center gap-3">
                 <span className="text-2xl">{tab.icon}</span>
                 <div>
@@ -130,7 +130,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                   </div>
                 </div>
               </div>
-            </button>
+    </button>
           ))}
         </div>
       </div>

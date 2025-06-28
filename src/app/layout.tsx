@@ -13,7 +13,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         <WebSocketProvider>
-          {children}
+        {children}
         </WebSocketProvider>
       </body>
     </html>

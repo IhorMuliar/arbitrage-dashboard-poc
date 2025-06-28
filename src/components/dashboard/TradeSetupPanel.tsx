@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSharedWebSocket } from '../../hooks/useWebSocket';
+import { useTradingAPI } from '../../hooks/useTradingAPI';
 
 interface TradeSetupPanelProps {
   selectedPair: string;
@@ -23,7 +24,7 @@ interface TradePreview {
     total: number;
   };
   netProfit: number;
-  roi: number;
+    roi: number;
 }
 
 export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteTrade }: TradeSetupPanelProps) {
@@ -31,24 +32,34 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
   const [currency, setCurrency] = useState<'USDT' | 'BTC' | 'ETH'>('USDT');
   const [isExecuting, setIsExecuting] = useState(false);
   const [tradePreview, setTradePreview] = useState<TradePreview | null>(null);
+  const [tradeError, setTradeError] = useState<string | null>(null);
 
-  // Use shared WebSocket connection for real data
-  const { data: arbitrageData, isConnected } = useSharedWebSocket();
+    // Use shared WebSocket connection for real data
+  const { data: arbitrageData, balances: accountBalances, isConnected, isLoading } = useSharedWebSocket();
+  
+  // Use trading API for real trades
+  const { openPosition } = useTradingAPI();
 
-  // Mock balance data - in a real app, this would come from the backend
-  const balances = {
-    USDT: 10000,
-    BTC: 0.5,
-    ETH: 5.2
+  // Calculate available balance and max position size
+  const getAvailableBalance = () => {
+    if (!accountBalances) return 0;
+    // Use minimum of free balances (limiting factor for arbitrage)
+    return Math.min(
+      accountBalances.bybit.free || 0,
+      accountBalances.hyperliquid.free || 0
+    );
   };
+
+  const availableBalance = getAvailableBalance();
+  const maxPositionSize = Math.floor(availableBalance * 0.97); // Use 95% as safety margin
 
   // Get available pairs from real data
   const availablePairs = arbitrageData?.pairs
-    ?.filter(pair => pair.bybit.available) // Only show pairs available on Bybit
-    ?.map(pair => pair.pair) || [];
+    ?.filter((pair) => pair.bybit.available) // Only show pairs available on Bybit
+    ?.map((pair) => pair.pair) || [];
 
   // Get current pair data for calculations
-  const currentPairData = arbitrageData?.pairs?.find(pair => pair.pair === selectedPair);
+  const currentPairData = arbitrageData?.pairs?.find((pair) => pair.pair === selectedPair);
 
   // Calculate trade preview when amount, pair, or data changes
   useEffect(() => {
@@ -82,8 +93,7 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
   }, [amount, selectedPair, currentPairData]);
 
   const handlePercentageClick = (percentage: number) => {
-    const balance = balances[currency];
-    const newAmount = (balance * percentage / 100).toString();
+    const newAmount = (availableBalance * percentage / 100).toString();
     setAmount(newAmount);
   };
 
@@ -91,17 +101,28 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
     if (!amount || !selectedPair) return;
     
     setIsExecuting(true);
+    setTradeError(null);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Mock delay
+      const result = await openPosition(selectedPair, parseFloat(amount));
+      
+      if (result.success) {
+        // Call the original callback for UI updates
       onExecuteTrade({
         pair: selectedPair,
         amount: parseFloat(amount),
         currency
       });
       setAmount('');
+        console.log('✅ Trade executed successfully:', result.message);
+      } else {
+        setTradeError(result.error || result.message);
+        console.error('❌ Trade execution failed:', result.error || result.message);
+      }
     } catch (error) {
-      console.error('Trade execution failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setTradeError(errorMessage);
+      console.error('❌ Trade execution failed:', error);
     } finally {
       setIsExecuting(false);
     }
@@ -110,13 +131,13 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
   const isValidTrade = amount && 
                      parseFloat(amount) > 0 && 
                      selectedPair && 
-                     parseFloat(amount) <= balances[currency] &&
+                     parseFloat(amount) <= availableBalance &&
                      currentPairData?.bybit.available;
 
   return (
     <div className="glass-card rounded-xl p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-white">Trade Setup</h2>
+      <h2 className="text-xl font-bold text-white">Trade Setup</h2>
         {!isConnected && (
           <div className="text-sm text-warning bg-warning/10 px-3 py-1 rounded">
             Connecting to data source...
@@ -142,7 +163,7 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
                 : 'Select a pair...'
               }
             </option>
-            {availablePairs.map(pair => (
+            {availablePairs.map((pair: string) => (
               <option key={pair} value={pair}>{pair}</option>
             ))}
           </select>
@@ -154,8 +175,8 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
         </div>
         {selectedPair && currentPairData && (
           <div className="space-y-1">
-            <div className="flex items-center gap-2 text-xs text-success">
-              <span>✓</span>
+          <div className="flex items-center gap-2 text-xs text-success">
+            <span>✓</span>
               <span>Valid arbitrage pair</span>
             </div>
             <div className="text-xs text-text-secondary">
@@ -183,6 +204,9 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
               className="w-full px-4 py-3 bg-tertiary border border-white/10 rounded-lg text-white text-lg font-mono focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+              step="0.01"
+              min="0"
+              max={maxPositionSize}
             />
           </div>
           <select
@@ -197,21 +221,112 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
           </select>
         </div>
         
-        <div className="flex justify-between items-center text-xs">
-          <span className="text-text-secondary">
-            Balance: {balances[currency].toLocaleString()} {currency}
-          </span>
-          <div className="flex gap-1">
-            {[25, 50, 75, 100].map(percentage => (
-              <button
-                key={percentage}
-                onClick={() => handlePercentageClick(percentage)}
-                className="px-2 py-1 bg-white/5 border border-white/10 rounded text-text-secondary hover:bg-accent/20 hover:border-accent/30 hover:text-accent transition-all duration-200 text-xs"
-              >
-                {percentage}%
-              </button>
-            ))}
+        <div className="space-y-2">
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-text-secondary">
+              Available: {availableBalance.toLocaleString()} USDT
+            </span>
+            <div className="flex gap-1">
+              {[25, 50, 75, 100].map(percentage => (
+                <button
+                  key={percentage}
+                  onClick={() => handlePercentageClick(percentage)}
+                  className="px-2 py-1 bg-white/5 border border-white/10 rounded text-text-secondary hover:bg-accent/20 hover:border-accent/30 hover:text-accent transition-all duration-200 text-xs"
+                >
+                  {percentage}%
+                </button>
+              ))}
+            </div>
           </div>
+          
+          {/* Account Balances Display */}
+          {isLoading ? (
+            <div className="bg-white/5 rounded-lg border border-white/10 p-3 space-y-2 animate-pulse">
+              <div className="text-xs font-medium text-white mb-2">Account Balances</div>
+              <div className="grid grid-cols-2 gap-4 text-xs">
+                <div>
+                  <div className="text-cyan-400 font-medium mb-1">HyperLiquid</div>
+                  <div className="space-y-1">
+                    {Array.from({ length: 3 }, (_, i) => (
+                      <div key={i} className="flex justify-between">
+                        <div className="h-3 bg-white/10 rounded w-12"></div>
+                        <div className="h-3 bg-white/10 rounded w-16"></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-orange-400 font-medium mb-1">Bybit</div>
+                  <div className="space-y-1">
+                    {Array.from({ length: 3 }, (_, i) => (
+                      <div key={i} className="flex justify-between">
+                        <div className="h-3 bg-white/10 rounded w-12"></div>
+                        <div className="h-3 bg-white/10 rounded w-16"></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="pt-2 border-t border-white/10">
+                <div className="flex justify-between items-center">
+                  <div className="h-3 bg-white/10 rounded w-24"></div>
+                  <div className="h-3 bg-white/10 rounded w-20"></div>
+                </div>
+                <div className="h-2 bg-white/5 rounded w-full mt-1"></div>
+              </div>
+            </div>
+          ) : accountBalances ? (
+            <div className="bg-white/5 rounded-lg border border-white/10 p-3 space-y-2">
+              <div className="text-xs font-medium text-white mb-2">Account Balances</div>
+              <div className="grid grid-cols-2 gap-4 text-xs">
+                <div>
+                  <div className="text-cyan-400 font-medium mb-1">HyperLiquid</div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">Total:</span>
+                      <span className="text-white font-mono">${accountBalances.hyperliquid.total.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">Free:</span>
+                      <span className="text-green-400 font-mono">${accountBalances.hyperliquid.free.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">Used:</span>
+                      <span className="text-orange-400 font-mono">${accountBalances.hyperliquid.used.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="text-orange-400 font-medium mb-1">Bybit</div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">Total:</span>
+                      <span className="text-white font-mono">${accountBalances.bybit.total.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">Free:</span>
+                      <span className="text-green-400 font-mono">${accountBalances.bybit.free.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-secondary">Used:</span>
+                      <span className="text-orange-400 font-mono">${accountBalances.bybit.used.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="pt-2 border-t border-white/10">
+                <div className="flex justify-between items-center">
+                  <span className="text-text-secondary text-xs">Max Position Size:</span>
+                  <span className="text-accent font-mono font-bold">${maxPositionSize.toLocaleString()} USDT</span>
+                </div>
+                <div className="text-xs text-text-secondary mt-1">
+                  (Limited by minimum free balance: ${Math.min(accountBalances.bybit.free, accountBalances.hyperliquid.free).toLocaleString()})
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -233,22 +348,22 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
                 {tradePreview.roi.toFixed(4)}%
               </span>
             </div>
-            <div>
+              <div>
               <span className="text-text-secondary">Total Fees:</span>
               <span className="block text-error font-mono">
                 -${tradePreview.fees.total.toFixed(4)}
-              </span>
-            </div>
-            <div>
+                </span>
+              </div>
+              <div>
               <span className="text-text-secondary">Net Profit:</span>
               <span className={`block font-mono font-bold ${
                 tradePreview.netProfit > 0 ? 'text-success' : 'text-error'
               }`}>
                 ${(tradePreview.netProfit).toFixed(4)}
-              </span>
+                </span>
             </div>
           </div>
-          
+
           {/* Fee Breakdown */}
           <div className="space-y-2 pt-2 border-t border-white/10">
             <div className="text-xs text-text-secondary">Fee Breakdown:</div>
@@ -263,6 +378,19 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Error Display */}
+      {tradeError && (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+          <div className="flex items-center gap-2 text-red-400">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="font-medium">Trade Execution Failed</span>
+          </div>
+          <p className="text-red-300 text-sm mt-2">{tradeError}</p>
         </div>
       )}
 
@@ -286,7 +414,7 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
         <div className="text-sm text-error">
           {!currentPairData?.bybit.available 
             ? 'Selected pair is not available on Bybit'
-            : parseFloat(amount) > balances[currency]
+            : parseFloat(amount) > availableBalance
             ? 'Insufficient balance'
             : 'Please check your trade parameters'
           }
