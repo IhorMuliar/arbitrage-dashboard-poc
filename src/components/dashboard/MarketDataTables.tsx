@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useWebSocket } from '../../hooks/useWebSocket';
+import { useSharedWebSocket } from '../../hooks/useWebSocket';
 
 interface HyperLiquidData {
   pair_name: string;
@@ -20,17 +20,17 @@ interface BybitData {
   bid_price: number;
   ask_price: number;
   volume_24h: number;
-  spread_percent: number;
+  spread_pct: number;
   exchange: string;
 }
 
 interface MarketData {
   hyperliquid: Record<string, HyperLiquidData>;
   bybit: Record<string, BybitData>;
-  timestamp: number;
 }
 
 // Extended WebSocket data interface that includes market data
+
 interface ExtendedWebSocketData {
   type: string;
   market_data?: MarketData;
@@ -46,37 +46,25 @@ export default function MarketDataTables() {
   const [hyperliquidSearch, setHyperliquidSearch] = useState('');
   const [bybitSearch, setBybitSearch] = useState('');
 
-  const { data: wsData, isConnected, error } = useWebSocket('ws://localhost:8765');
+  // Use shared WebSocket connection - no more individual connections
+  const { marketData: wsMarketData, isConnected, error } = useSharedWebSocket();
 
-  // Handle WebSocket messages for market data from the shared connection
+  // Handle market data from shared WebSocket connection
   useEffect(() => {
-    // This component will now use the shared WebSocket connection
-    // and listen for market data in the useWebSocket hook
-    console.log('🔌 MarketDataTables using shared WebSocket connection');
-    
-    // Market data will be received via a separate mechanism
-    // For now, we'll fetch it via HTTP API as fallback
-    const fetchMarketData = async () => {
-      try {
-        const response = await fetch('http://localhost:8080/api/market/data');
-        if (response.ok) {
-          const data = await response.json();
-          console.log('📊 Fetched market data via HTTP:', data);
-          setMarketData(data);
-        }
-      } catch (err) {
-        console.error('❌ Error fetching market data via HTTP:', err);
-      }
-    };
+    if (wsMarketData) {
+      console.log('📊 MarketDataTables: Received market data via shared WebSocket');
+      setMarketData(wsMarketData);
+    }
+  }, [wsMarketData]);
 
-    // Fetch market data initially and every 3 seconds
-    fetchMarketData();
-    const interval = setInterval(fetchMarketData, 3000);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, []);
+  // Log connection status
+  useEffect(() => {
+    if (isConnected) {
+      console.log('✅ MarketDataTables: Connected via shared WebSocket');
+    } else {
+      console.log('❌ MarketDataTables: Disconnected from shared WebSocket');
+    }
+  }, [isConnected]);
 
   const formatNumber = (num: number, decimals: number = 6) => {
     if (num === 0) return '0.00';
@@ -294,8 +282,8 @@ export default function MarketDataTables() {
                     <td className="py-3 px-4 text-right text-accent-red">${formatNumber(data.ask_price, 4)}</td>
                     <td className="py-3 px-4 text-right text-white">{formatVolume(data.volume_24h)}</td>
                     <td className="py-3 px-4 text-right">
-                      <span className={`font-semibold ${data.spread_percent < 0.1 ? 'text-accent-green' : data.spread_percent < 0.5 ? 'text-yellow-400' : 'text-accent-red'}`}>
-                        {formatPercentage(data.spread_percent)}
+                      <span className={`font-semibold ${data.spread_pct < 0.1 ? 'text-accent-green' : data.spread_pct < 0.5 ? 'text-yellow-400' : 'text-accent-red'}`}>
+                        {formatPercentage(data.spread_pct)}
                       </span>
                     </td>
                   </tr>

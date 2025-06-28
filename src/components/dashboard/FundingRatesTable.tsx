@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useWebSocket, type ArbitragePair } from '../../hooks/useWebSocket';
+import { useSharedWebSocket, type ArbitragePair } from '../../hooks/useWebSocket';
 
 interface FundingRatesTableProps {
   onPairSelect: (pair: string) => void;
@@ -16,8 +16,8 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
   const [currentPage, setCurrentPage] = useState(1);
   const [newPairsAlert, setNewPairsAlert] = useState<string[]>([]);
 
-  // Connect to WebSocket server
-  const { data: arbitrageData, isConnected, isLoading, error, reconnect } = useWebSocket('ws://localhost:8765');
+  // Use shared WebSocket connection - no more individual connections
+  const { data: arbitrageData, isConnected, isLoading, error, reconnect } = useSharedWebSocket();
 
   const fundingRates = arbitrageData?.pairs || [];
 
@@ -111,7 +111,7 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
             )}
             {arbitrageData?.metadata?.real_time_monitoring && (
               <div className="text-xs text-success">
-                🔄 Auto-refresh every 3s
+                🔄 Auto-refresh every 1 minute
               </div>
             )}
           </div>

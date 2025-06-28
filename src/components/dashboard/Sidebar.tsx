@@ -1,6 +1,6 @@
 'use client';
 
-import { useWebSocket } from '../../hooks/useWebSocket';
+import { useSharedWebSocket } from '../../hooks/useWebSocket';
 
 interface SidebarProps {
   activeTab: string;
@@ -8,8 +8,8 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
-  // Connect to WebSocket to get connection status
-  const { isConnected, isLoading, error } = useWebSocket('ws://localhost:8765');
+  // Use shared WebSocket connection for status
+  const { isConnected, isLoading, error } = useSharedWebSocket();
 
   const tabs = [
     {

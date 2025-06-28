@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useWebSocket } from '../../hooks/useWebSocket';
+import { useSharedWebSocket } from '../../hooks/useWebSocket';
 
 interface TradeSetupPanelProps {
   selectedPair: string;
@@ -16,20 +16,14 @@ interface TradeData {
 }
 
 interface TradePreview {
-  expectedProfit: number;
-  feeBreakdown: {
+  estimatedProfit: number;
+  fees: {
     hyperliquid: number;
     bybit: number;
     total: number;
   };
-  riskMetrics: {
-    maxDrawdown: number;
-    roi: number;
-  };
-  positions: {
-    hyperliquid: number;
-    bybit: number;
-  };
+  netProfit: number;
+  roi: number;
 }
 
 export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteTrade }: TradeSetupPanelProps) {
@@ -38,8 +32,8 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
   const [isExecuting, setIsExecuting] = useState(false);
   const [tradePreview, setTradePreview] = useState<TradePreview | null>(null);
 
-  // Connect to WebSocket for real data
-  const { data: arbitrageData, isConnected } = useWebSocket('ws://localhost:8765');
+  // Use shared WebSocket connection for real data
+  const { data: arbitrageData, isConnected } = useSharedWebSocket();
 
   // Mock balance data - in a real app, this would come from the backend
   const balances = {
@@ -72,20 +66,14 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
       const totalFees = hyperliquidFee + bybitFee;
       
       const preview: TradePreview = {
-        expectedProfit: expectedProfit,
-        feeBreakdown: {
+        estimatedProfit: expectedProfit,
+        fees: {
           hyperliquid: hyperliquidFee,
           bybit: bybitFee,
           total: totalFees
         },
-        riskMetrics: {
-          maxDrawdown: amountNum * 0.05, // 5% estimated max drawdown
-          roi: (expectedProfit / amountNum) * 100
-        },
-        positions: {
-          hyperliquid: amountNum, // Short position on HyperLiquid
-          bybit: amountNum // Long position (spot buy) on Bybit
-        }
+        netProfit: expectedProfit - totalFees,
+        roi: (expectedProfit / amountNum) * 100
       };
       setTradePreview(preview);
     } else {
@@ -234,46 +222,30 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
           
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <span className="text-text-secondary">Expected Profit (8h):</span>
+              <span className="text-text-secondary">Estimated Profit (8h):</span>
               <span className="block text-success font-mono font-bold">
-                +${tradePreview.expectedProfit.toFixed(4)}
+                +${tradePreview.estimatedProfit.toFixed(4)}
               </span>
             </div>
             <div>
               <span className="text-text-secondary">ROI (8h):</span>
               <span className="block text-success font-mono font-bold">
-                {tradePreview.riskMetrics.roi.toFixed(4)}%
+                {tradePreview.roi.toFixed(4)}%
               </span>
             </div>
             <div>
               <span className="text-text-secondary">Total Fees:</span>
               <span className="block text-error font-mono">
-                -${tradePreview.feeBreakdown.total.toFixed(4)}
+                -${tradePreview.fees.total.toFixed(4)}
               </span>
             </div>
             <div>
               <span className="text-text-secondary">Net Profit:</span>
               <span className={`block font-mono font-bold ${
-                (tradePreview.expectedProfit - tradePreview.feeBreakdown.total) > 0 
-                  ? 'text-success' : 'text-error'
+                tradePreview.netProfit > 0 ? 'text-success' : 'text-error'
               }`}>
-                ${(tradePreview.expectedProfit - tradePreview.feeBreakdown.total).toFixed(4)}
+                ${(tradePreview.netProfit).toFixed(4)}
               </span>
-            </div>
-          </div>
-          
-          {/* Position Details */}
-          <div className="space-y-2 pt-2 border-t border-white/10">
-            <div className="text-xs text-text-secondary">Position Details:</div>
-            <div className="grid grid-cols-2 gap-4 text-xs">
-              <div>
-                <span className="text-text-secondary">HyperLiquid (Short):</span>
-                <div className="text-white font-mono">${tradePreview.positions.hyperliquid.toFixed(2)}</div>
-              </div>
-              <div>
-                <span className="text-text-secondary">Bybit (Spot Buy):</span>
-                <div className="text-white font-mono">${tradePreview.positions.bybit.toFixed(2)}</div>
-              </div>
             </div>
           </div>
           
@@ -283,11 +255,11 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
             <div className="space-y-1 text-xs">
               <div className="flex justify-between">
                 <span className="text-text-secondary">HyperLiquid (0.02%):</span>
-                <span className="text-white font-mono">${tradePreview.feeBreakdown.hyperliquid.toFixed(4)}</span>
+                <span className="text-white font-mono">${tradePreview.fees.hyperliquid.toFixed(4)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-text-secondary">Bybit (0.10%):</span>
-                <span className="text-white font-mono">${tradePreview.feeBreakdown.bybit.toFixed(4)}</span>
+                <span className="text-white font-mono">${tradePreview.fees.bybit.toFixed(4)}</span>
               </div>
             </div>
           </div>
