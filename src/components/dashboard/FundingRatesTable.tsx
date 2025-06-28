@@ -95,7 +95,7 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-xl font-bold text-white">
-            All Positive Funding Opportunities - Real-time
+            Arbitrage Opportunities Dashboard - Real-time
           </h2>
           <div className="flex items-center gap-4 mt-2">
             <div className={`flex items-center gap-2 text-sm ${isConnected ? 'text-success' : 'text-error'}`}>

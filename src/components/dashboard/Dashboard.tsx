@@ -5,7 +5,6 @@ import Sidebar from './Sidebar';
 import FundingRatesTable from './FundingRatesTable';
 import TradeSetupPanel from './TradeSetupPanel';
 import ActivePositionsMonitor from './ActivePositionsMonitor';
-import MarketDataTables from './MarketDataTables';
 
 interface Position {
   id: string;
@@ -113,10 +112,7 @@ export default function Dashboard() {
       case 'manual':
         return (
           <div className="space-y-6">
-            {/* Market Data Tables - New comprehensive data */}
-            <MarketDataTables />
-            
-            {/* Funding Rates Table */}
+            {/* Funding Rates Table - Combined arbitrage opportunities */}
             <FundingRatesTable onPairSelect={handlePairSelect} />
             
             {/* Trade Setup Panel */}

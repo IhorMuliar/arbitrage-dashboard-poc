@@ -39,11 +39,6 @@ export interface ArbitragePair {
   annual_funding_rate: number;
 }
 
-export interface MarketData {
-  hyperliquid: Record<string, any>;
-  bybit: Record<string, any>;
-}
-
 export interface WebSocketMessage {
   type: string;
   data?: any;
@@ -53,7 +48,6 @@ export interface WebSocketMessage {
 
 interface WebSocketContextType {
   data: ArbitrageData | null;
-  marketData: MarketData | null;
   isConnected: boolean;
   isLoading: boolean;
   error: string | null;
@@ -66,7 +60,6 @@ const WebSocketContext = createContext<WebSocketContextType | null>(null);
 // WebSocket Provider Component
 export function WebSocketProvider({ children }: { children: ReactNode }): React.ReactElement {
   const [data, setData] = useState<ArbitrageData | null>(null);
-  const [marketData, setMarketData] = useState<MarketData | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -125,12 +118,9 @@ export function WebSocketProvider({ children }: { children: ReactNode }): React.
           const message: WebSocketMessage = JSON.parse(event.data);
           
           if (message.type === 'arbitrage_data' && message.data) {
-            console.log('📈 Shared: Received funding data:', message.data.pairs?.length, 'pairs');
+            console.log('📈 Shared: Received arbitrage data:', message.data.pairs?.length, 'pairs');
             setData(message.data);
             setIsLoading(false);
-          } else if (message.type === 'market_data' && message.data) {
-            console.log('🏪 Shared: Received market data: HL:', Object.keys(message.data.hyperliquid || {}).length, 'Bybit:', Object.keys(message.data.bybit || {}).length);
-            setMarketData(message.data);
           } else if (message.type === 'connection') {
             console.log('🤝 Shared connection established:', message.message || 'Ready');
           } else if (message.type === 'pong') {
@@ -219,7 +209,6 @@ export function WebSocketProvider({ children }: { children: ReactNode }): React.
   
   const value: WebSocketContextType = {
     data,
-    marketData,
     isConnected,
     isLoading,
     error,
