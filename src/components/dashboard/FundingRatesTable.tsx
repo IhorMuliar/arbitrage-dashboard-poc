@@ -24,7 +24,7 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
   // Show connecting state when not connected
   const showConnectingState = !isConnected;
 
-  const fundingRates = arbitrageData?.pairs || [];
+  const fundingRates = isConnected ? (arbitrageData?.pairs || []) : [];
 
   // Track new pairs for alerts
   useEffect(() => {
@@ -112,14 +112,14 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
               <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-success animate-pulse' : 'bg-error'}`}></div>
               <span>{isConnected ? 'Live Updates' : 'Disconnected'}</span>
             </div>
-            {arbitrageData?.metadata && (
+            {isConnected && arbitrageData?.metadata && (
               <div className="text-sm text-text-secondary">
                 <span className="text-cyan-400 font-semibold">HyperLiquid:</span> {arbitrageData.metadata.positive_funding_pairs} positive funding pairs
                 {' • '}
                 <span className="text-orange-400 font-semibold">Bybit:</span> {arbitrageData.metadata.bybit_available_pairs} spot pairs available
               </div>
             )}
-            {arbitrageData?.metadata?.real_time_monitoring && (
+            {isConnected && arbitrageData?.metadata?.real_time_monitoring && (
               <div className="text-xs text-success">
                 🔄 Auto-refresh every 1 minute
               </div>
@@ -231,12 +231,7 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
         )}
       </div>
 
-      {isLoading && !arbitrageData && (
-        <div className="text-center py-8">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
-          <p className="text-text-secondary mt-2">Loading arbitrage data...</p>
-        </div>
-      )}
+
 
       {error && !isLoading && (
         <div className="text-center py-8">
@@ -302,7 +297,7 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
                   HL 24h Volume
                 </th>
                 <th className="text-right py-3 px-3 text-xs font-bold text-black bg-cyan-400 border-r border-cyan-500">
-                  HL Hourly Rate
+                  HL 8h Funding Rate
                 </th>
                 <th className="text-right py-3 px-3 text-xs font-bold text-black bg-cyan-400 border-r-2 border-cyan-600">
                   HL Annual Rate
@@ -405,7 +400,7 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
                   onClick={() => handleSort('funding_rate')}
                   className="text-right py-3 px-3 text-xs font-bold text-black cursor-pointer hover:text-gray-800 transition-colors bg-cyan-400 border-r border-cyan-500"
               >
-                  HL Hourly Rate {sortField === 'funding_rate' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  HL 8h Rate {sortField === 'funding_rate' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </th>
                 <th className="text-right py-3 px-3 text-xs font-bold text-black bg-cyan-400 border-r-2 border-cyan-600">
                   HL Annual Rate
@@ -471,7 +466,7 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
                     <td className={`py-3 px-3 text-right font-mono bg-cyan-600/10 ${
                       rate.funding_rate > 0 ? 'text-success' : 'text-error'
                     }`}>
-                      {(rate.funding_rate * 100).toFixed(4)}%
+                      {(rate.funding_rate * 100 * 8).toFixed(4)}%
                 </td>
                     <td className={`py-3 px-3 text-right font-mono bg-cyan-600/10 ${
                       rate.annual_funding_rate > 0 ? 'text-success' : 'text-error'

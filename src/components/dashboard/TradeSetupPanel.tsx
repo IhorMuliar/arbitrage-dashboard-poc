@@ -24,7 +24,13 @@ interface TradePreview {
     total: number;
   };
   netProfit: number;
-    roi: number;
+  roi: number;
+  pnlTimeframes: {
+    eightHour: number;
+    oneDay: number;
+    threeDays: number;
+    oneWeek: number;
+  };
 }
 
 export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteTrade }: TradeSetupPanelProps) {
@@ -40,9 +46,9 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
   // Use trading API for real trades
   const { openPosition } = useTradingAPI();
 
-  // Calculate available balance and max position size
+  // Calculate available balance and max position size (only when connected)
   const getAvailableBalance = () => {
-    if (!accountBalances) return 0;
+    if (!isConnected || !accountBalances) return 0;
     // Use minimum of free balances (limiting factor for arbitrage)
     return Math.min(
       accountBalances.bybit.free || 0,
@@ -53,13 +59,17 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
   const availableBalance = getAvailableBalance();
   const maxPositionSize = Math.floor(availableBalance * 0.97); // Use 95% as safety margin
 
-  // Get available pairs from real data
-  const availablePairs = arbitrageData?.pairs
-    ?.filter((pair) => pair.bybit.available) // Only show pairs available on Bybit
-    ?.map((pair) => pair.pair) || [];
+  // Get available pairs from real data (only when connected)
+  const availablePairs = isConnected && arbitrageData?.pairs
+    ? arbitrageData.pairs
+        .filter((pair) => pair.bybit.available) // Only show pairs available on Bybit
+        .map((pair) => pair.pair)
+    : [];
 
-  // Get current pair data for calculations
-  const currentPairData = arbitrageData?.pairs?.find((pair) => pair.pair === selectedPair);
+  // Get current pair data for calculations (only when connected)
+  const currentPairData = isConnected && arbitrageData?.pairs
+    ? arbitrageData.pairs.find((pair) => pair.pair === selectedPair)
+    : null;
 
   // Calculate trade preview when amount, pair, or data changes
   useEffect(() => {
@@ -67,15 +77,26 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
       const amountNum = parseFloat(amount);
       const fundingRate = currentPairData.funding_rate;
 
-      // Calculate estimated daily profit based on funding rate
-      const dailyProfit = amountNum * fundingRate;
-      const expectedProfit = dailyProfit; // Estimated for next funding period
+      // Calculate estimated 8-hour profit based on HOURLY funding rate
+      // fundingRate is hourly rate in decimal format (e.g., 0.000013 = 0.0013% per hour)
+      // For 8-hour period: multiply hourly rate by 8
+      const eightHourProfit = amountNum * fundingRate * 8;
+      const expectedProfit = eightHourProfit; // Estimated for next 8-hour funding period
       
-      // Estimate fees (these would be more accurate with real exchange data)
-      const hyperliquidFee = amountNum * 0.0002; // 0.02% maker fee
-      const bybitFee = amountNum * 0.001; // 0.1% spot trading fee
+      // Estimate fees based on actual exchange rates
+      const hyperliquidFee = amountNum * 0.00015; // 0.015% maker fee (limit order for short position)
+      const bybitFee = amountNum * 0.001; // 0.1% spot market buy fee
       const totalFees = hyperliquidFee + bybitFee;
       
+      // Calculate NET PnL for different timeframes (gross profit - fees)
+      const hourlyProfit = amountNum * fundingRate;
+      const pnlTimeframes = {
+        eightHour: (hourlyProfit * 8) - totalFees,
+        oneDay: (hourlyProfit * 24) - totalFees,
+        threeDays: (hourlyProfit * 24 * 3) - totalFees,
+        oneWeek: (hourlyProfit * 24 * 7) - totalFees
+      };
+
       const preview: TradePreview = {
         estimatedProfit: expectedProfit,
         fees: {
@@ -84,7 +105,8 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
           total: totalFees
         },
         netProfit: expectedProfit - totalFees,
-        roi: (expectedProfit / amountNum) * 100
+        roi: (expectedProfit / amountNum) * 100,
+        pnlTimeframes
       };
       setTradePreview(preview);
     } else {
@@ -180,7 +202,7 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
               <span>Valid arbitrage pair</span>
             </div>
             <div className="text-xs text-text-secondary">
-              Funding rate: {(currentPairData.funding_rate * 100).toFixed(4)}% 
+              8h Funding rate: {(currentPairData.funding_rate * 100 * 8).toFixed(4)}% 
               ({currentPairData.annual_funding_rate.toFixed(1)}% APY)
             </div>
             <div className="text-xs text-text-secondary">
@@ -239,8 +261,8 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
             </div>
           </div>
           
-          {/* Account Balances Display */}
-          {isLoading ? (
+          {/* Account Balances Display - Only show when connected */}
+          {isConnected && isLoading ? (
             <div className="bg-white/5 rounded-lg border border-white/10 p-3 space-y-2 animate-pulse">
               <div className="text-xs font-medium text-white mb-2">Account Balances</div>
               <div className="grid grid-cols-2 gap-4 text-xs">
@@ -275,7 +297,7 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
                 <div className="h-2 bg-white/5 rounded w-full mt-1"></div>
               </div>
             </div>
-          ) : accountBalances ? (
+          ) : isConnected && accountBalances ? (
             <div className="bg-white/5 rounded-lg border border-white/10 p-3 space-y-2">
               <div className="text-xs font-medium text-white mb-2">Account Balances</div>
               <div className="grid grid-cols-2 gap-4 text-xs">
@@ -335,46 +357,51 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
         <div className="space-y-4 p-4 bg-white/5 rounded-lg border border-white/10">
           <h3 className="text-sm font-medium text-white">Trade Preview</h3>
           
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-text-secondary">Estimated Profit (8h):</span>
-              <span className="block text-success font-mono font-bold">
-                +${tradePreview.estimatedProfit.toFixed(4)}
-              </span>
-            </div>
-            <div>
-              <span className="text-text-secondary">ROI (8h):</span>
-              <span className="block text-success font-mono font-bold">
-                {tradePreview.roi.toFixed(4)}%
-              </span>
-            </div>
-              <div>
-              <span className="text-text-secondary">Total Fees:</span>
-              <span className="block text-error font-mono">
-                -${tradePreview.fees.total.toFixed(4)}
-                </span>
-              </div>
-              <div>
-              <span className="text-text-secondary">Net Profit:</span>
-              <span className={`block font-mono font-bold ${
-                tradePreview.netProfit > 0 ? 'text-success' : 'text-error'
-              }`}>
-                ${(tradePreview.netProfit).toFixed(4)}
-                </span>
-            </div>
-          </div>
-
           {/* Fee Breakdown */}
-          <div className="space-y-2 pt-2 border-t border-white/10">
-            <div className="text-xs text-text-secondary">Fee Breakdown:</div>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-text-secondary">Fee Breakdown:</span>
+              <span className="text-error font-mono font-bold">-${tradePreview.fees.total.toFixed(2)}</span>
+            </div>
             <div className="space-y-1 text-xs">
               <div className="flex justify-between">
-                <span className="text-text-secondary">HyperLiquid (0.02%):</span>
+                <span className="text-text-secondary">HyperLiquid (0.015%):</span>
                 <span className="text-white font-mono">${tradePreview.fees.hyperliquid.toFixed(4)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-text-secondary">Bybit (0.10%):</span>
                 <span className="text-white font-mono">${tradePreview.fees.bybit.toFixed(4)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Profit Projections */}
+          <div className="space-y-2 pt-2 border-t border-white/10">
+            <div className="text-sm text-text-secondary">💰 Net PnL by Timeframe (after fees):</div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-text-secondary">8 Hours:</span>
+                <span className={`font-mono font-bold ${tradePreview.pnlTimeframes.eightHour >= 0 ? 'text-success' : 'text-error'}`}>
+                  {tradePreview.pnlTimeframes.eightHour >= 0 ? '+' : ''}${tradePreview.pnlTimeframes.eightHour.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-text-secondary">1 Day:</span>
+                <span className={`font-mono font-bold ${tradePreview.pnlTimeframes.oneDay >= 0 ? 'text-success' : 'text-error'}`}>
+                  {tradePreview.pnlTimeframes.oneDay >= 0 ? '+' : ''}${tradePreview.pnlTimeframes.oneDay.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-text-secondary">3 Days:</span>
+                <span className={`font-mono font-bold ${tradePreview.pnlTimeframes.threeDays >= 0 ? 'text-success' : 'text-error'}`}>
+                  {tradePreview.pnlTimeframes.threeDays >= 0 ? '+' : ''}${tradePreview.pnlTimeframes.threeDays.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-text-secondary">1 Week:</span>
+                <span className={`font-mono font-bold ${tradePreview.pnlTimeframes.oneWeek >= 0 ? 'text-success' : 'text-error'}`}>
+                  {tradePreview.pnlTimeframes.oneWeek >= 0 ? '+' : ''}${tradePreview.pnlTimeframes.oneWeek.toFixed(2)}
+                </span>
               </div>
             </div>
           </div>
