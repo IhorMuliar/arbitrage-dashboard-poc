@@ -288,12 +288,6 @@ export default function ActivePositionsMonitor({ onClosePosition, onModifyPositi
                 
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => onModifyPosition && onModifyPosition(symbol)}
-                    className="px-3 py-1 text-sm bg-white/10 hover:bg-white/20 text-white rounded transition-colors"
-                  >
-                    Modify
-                  </button>
-                  <button
                     onClick={() => handleClosePosition(position)}
                     disabled={isClosing}
                     className="px-3 py-1 text-sm bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
@@ -334,7 +328,7 @@ export default function ActivePositionsMonitor({ onClosePosition, onModifyPositi
 
                 {/* Bybit Side */}
                 <div className="space-y-2">
-                  <div className="text-orange-400 font-medium">Bybit (Long)</div>
+                  <div className="text-orange-400 font-medium">Bybit (Spot)</div>
                   <div className="space-y-1">
                     <div className="flex justify-between">
                       <span className="text-text-secondary">Entry:</span>
