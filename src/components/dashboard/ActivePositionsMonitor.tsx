@@ -86,23 +86,25 @@ export default function ActivePositionsMonitor({ onClosePosition, onModifyPositi
     try {
       setClosingPositions(prev => new Set(prev).add(positionKey));
       
-      const result = await closePosition(position.symbol, 100);
+      // Format the pair name to match backend expectation (add /USDT if not present)
+      const formattedPair = positionKey.includes('/') ? positionKey : `${positionKey}/USDT`;
+      
+      const result = await closePosition(formattedPair, 100);
       
       if (result.success) {
         // Position will be automatically removed from activePositions via WebSocket update
-        
-        // Call original callback if provided
         if (onClosePosition) {
           onClosePosition(positionKey);
         }
-        
         console.log('✅ Position closed successfully:', result.message);
       } else {
-        setError(result.error || result.message);
-        console.error('❌ Failed to close position:', result.error || result.message);
+        const errorMsg = result.error || result.message || 'Unknown error occurred';
+        setError(errorMsg);
+        console.error('❌ Failed to close position:', errorMsg);
       }
-    } catch (err) {
-      setError('Failed to close position');
+    } catch (err: any) {
+      const errorMsg = err?.message || 'Failed to close position';
+      setError(errorMsg);
       console.error('Error closing position:', err);
     } finally {
       setClosingPositions(prev => {
@@ -265,147 +267,82 @@ export default function ActivePositionsMonitor({ onClosePosition, onModifyPositi
 
       <div className="space-y-4">
         {paginatedPositions.map((position, index) => {
-          const symbol = position.symbol || `unknown-${index}`;
-          const isClosing = closingPositions.has(symbol);
-          const pairName = formatPairName(symbol);
+          const isClosing = closingPositions.has(position.symbol);
           
           return (
-            <div key={symbol} className="bg-white/5 rounded-lg border border-white/10 p-4">
-              <div className="flex items-center justify-between mb-4">
+            <div key={position.symbol} className="glass-card rounded-xl p-4 relative">
+              {/* Header */}
+              <div className="flex justify-between items-center mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="text-lg font-bold text-white">{pairName}</div>
-                  <div className={`px-2 py-1 rounded text-xs font-medium ${
-                    position.status === 'active' 
-                      ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                      : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                  }`}>
-                    {position.status ? position.status.toUpperCase() : 'UNKNOWN'}
-                  </div>
-                  <div className="text-sm text-text-secondary">
-                    ${position.usdt_amount ? position.usdt_amount.toLocaleString() : '0'} USDT
-                  </div>
+                  <div className="text-xl font-bold text-white">{position.symbol}</div>
+                  <div className="text-text-secondary">${position.usdt_amount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT</div>
                 </div>
-                
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleClosePosition(position)}
-                    disabled={isClosing}
-                    className="px-3 py-1 text-sm bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                  >
-                    {isClosing ? (
-                      <>
-                        <div className="w-3 h-3 border border-red-400 border-t-transparent rounded-full animate-spin"></div>
-                        Closing...
-                      </>
-                    ) : (
-                      'Close'
-                    )}
-                  </button>
-                </div>
+                <button
+                  onClick={() => handleClosePosition(position)}
+                  disabled={isClosing}
+                  className="px-4 py-1.5 text-sm bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isClosing ? (
+                    <>
+                      <div className="w-3 h-3 border border-red-400 border-t-transparent rounded-full animate-spin"></div>
+                      Closing...
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-red-400">✕</span>
+                      Close
+                    </>
+                  )}
+                </button>
               </div>
 
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+              {/* Position Details Grid */}
+              <div className="grid grid-cols-2 gap-4">
                 {/* HyperLiquid Side */}
-                <div className="space-y-2">
-                  <div className="text-cyan-400 font-medium">HyperLiquid (Short)</div>
-                  <div className="space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-text-secondary">Entry:</span>
-                      <span className="text-white font-mono">{formatCurrency(position.hyperliquid?.entry_price || 0)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-text-secondary">Size:</span>
-                      <span className="text-white font-mono">{(position.hyperliquid?.size || 0).toFixed(6)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-text-secondary">PnL:</span>
-                      <span className={`font-mono font-bold ${getPnLColor(position.hyperliquid?.unrealized_pnl || 0)}`}>
-                        {formatCurrency(position.hyperliquid?.unrealized_pnl || 0)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                <div className="space-y-3">
+                  <div className="text-cyan-400 font-medium flex items-center gap-2">
+                    <span>HyperLiquid</span>
 
-                {/* Bybit Side */}
-                <div className="space-y-2">
-                  <div className="text-orange-400 font-medium">Bybit (Spot)</div>
-                  <div className="space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-text-secondary">Entry:</span>
-                      <span className="text-white font-mono">{formatCurrency(position.bybit?.entry_price || 0)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-text-secondary">Amount:</span>
-                      <span className="text-white font-mono">{(position.bybit?.amount || 0).toFixed(6)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-text-secondary">PnL:</span>
-                      <span className={`font-mono font-bold ${getPnLColor(position.bybit?.unrealized_pnl || 0)}`}>
-                        {formatCurrency(position.bybit?.unrealized_pnl || 0)}
-                      </span>
-                    </div>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        'bg-red-500/20 text-red-400'
+                    }`}>
+                      {'Short'}
+                    </span>
                   </div>
-                </div>
-
-                {/* Combined Metrics */}
-                <div className="space-y-2">
-                  <div className="text-white font-medium">Combined</div>
-                  <div className="space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-text-secondary">Total PnL:</span>
-                      <span className={`font-mono font-bold ${getPnLColor(position.total?.net_pnl || 0)}`}>
-                        {formatCurrency(position.total?.net_pnl || 0)}
-                      </span>
+                  <div className="grid grid-cols-2 gap-y-2">
+                    <div className="text-text-secondary text-sm">Entry Price:</div>
+                    <div className="text-right font-mono text-white">${position.hyperliquid?.entry_price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    
+                    <div className="text-text-secondary text-sm">Size:</div>
+                    <div className="text-right font-mono text-white">{position.hyperliquid?.size?.toFixed(6)}</div>
+                    
+                    <div className="text-text-secondary text-sm">PnL:</div>
+                    <div className={`text-right font-mono font-medium ${getPnLColor(position.hyperliquid?.unrealized_pnl || 0)}`}>
+                      {formatCurrency(position.hyperliquid?.unrealized_pnl || 0)}
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-text-secondary">Funding:</span>
-                      <span className="text-green-400 font-mono">
-                        {formatCurrency(position.total?.funding_earned || 0)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-text-secondary">Return:</span>
-                      <span className={`font-mono font-bold ${getPnLColor(position.total?.net_pnl || 0)}`}>
-                        {formatPercentage(((position.total?.net_pnl || 0) / (position.usdt_amount || 1)) * 100)}
-                      </span>
-                    </div>
+                    
+                    <div className="text-text-secondary text-sm">Funding:</div>
+                    <div className="text-right font-mono text-green-400">{formatCurrency(position.total?.funding_earned || 0)}</div>
                   </div>
                 </div>
 
                 {/* Risk Metrics */}
-                <div className="space-y-2">
-                  <div className="text-white font-medium">Risk</div>
-                  <div className="space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-text-secondary">Liq. Risk:</span>
-                      <span className={`font-mono ${getRiskColor(position.hyperliquid?.liquidation_risk_pct || 0)}`}>
-                        {(position.hyperliquid?.liquidation_risk_pct || 0).toFixed(1)}%
-                      </span>
+                <div className="space-y-3">
+                  <div className="text-white font-medium">Risk Metrics</div>
+                  <div className="grid grid-cols-2 gap-y-2">
+                    <div className="text-text-secondary text-sm">Liquidation Risk:</div>
+                    <div className={`text-right font-mono ${getRiskColor(position.hyperliquid?.liquidation_risk_pct || 0)}`}>
+                      {(position.hyperliquid?.liquidation_risk_pct || 0).toFixed(1)}%
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-text-secondary">Leverage:</span>
-                      <span className="text-white font-mono">{(position.hyperliquid?.leverage || 0).toFixed(1)}x</span>
+                    
+                    <div className="text-text-secondary text-sm">Liquidation Price:</div>
+                    <div className="text-right font-mono text-white">
+                      ${position.hyperliquid?.liquidation_price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-text-secondary">Funding Rate:</span>
-                      <span className="text-green-400 font-mono">
-                        {formatPercentage((position.entry_funding_rate || 0) * 100)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
 
-              {/* Time and Status */}
-              <div className="mt-4 pt-4 border-t border-white/10 flex justify-between items-center text-xs text-text-secondary">
-                <div>
-                  Entry Time: {position.entry_time ? new Date(position.entry_time).toLocaleString() : 'N/A'}
-                </div>
-                <div>
-                  Duration: {position.entry_time ? 
-                    Math.floor((Date.now() - new Date(position.entry_time).getTime()) / (1000 * 60 * 60)) + 'h' : 
-                    'N/A'
-                  }
+                    <div className="text-text-secondary text-sm">Leverage:</div>
+                    <div className="text-right font-mono text-white">{(position.hyperliquid?.leverage || 0).toFixed(1)}x</div>
+                  </div>
                 </div>
               </div>
             </div>

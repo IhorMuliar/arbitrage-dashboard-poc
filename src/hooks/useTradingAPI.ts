@@ -64,20 +64,31 @@ const executeTradeAPI = async (pair: string, amount: number): Promise<any> => {
 };
 
 const closeTradeAPI = async (pair: string, percentage: number = 100): Promise<any> => {
-  const response = await fetch(`${API_BASE_URL}/trading/close`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ pair, percentage }),
-  });
-  
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+  try {
+    const response = await fetch(`${API_BASE_URL}/trading/close`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        pair,
+        percentage 
+      }),
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || data.error || `Failed to close position (${response.status})`);
+    }
+    
+    return data;
+  } catch (error: any) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Failed to close position: Network error');
   }
-  
-  return response.json();
 };
 
 const getActivePositionsAPI = async (): Promise<Position[]> => {

@@ -9,12 +9,14 @@ export interface ArbitragePair {
   hyperliquid: {
     bid: number;
     ask: number;
-    volume_24h: number;
+    volume: number;
+    bid_size?: number;
+    ask_size?: number;
   };
   bybit: {
     bid: number;
     ask: number;
-    volume_24h: number;
+    volume: number;
     available: boolean;
   };
 }

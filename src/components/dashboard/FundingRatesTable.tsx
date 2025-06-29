@@ -80,6 +80,7 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
   };
 
   const formatVolume = (volume: number): string => {
+    if (!volume && volume !== 0) return '0';
     const safeVolume = volume || 0;
     if (safeVolume >= 1_000_000) {
       return `${(safeVolume / 1_000_000).toFixed(1)}M`;
@@ -429,36 +430,36 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
                       )}
                     </td>
                     <td className="py-3 px-3 text-right text-white font-mono bg-cyan-600/10">
-                      ${rate.hyperliquid.bid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                      ${rate.hyperliquid.bid.toLocaleString(undefined, { minimumFractionDigits: 5, maximumFractionDigits: 5 })}
                     </td>
                     <td className="py-3 px-3 text-right text-text-secondary font-mono bg-cyan-600/10">
-                      -
+                      {rate.hyperliquid.bid_size ? formatVolume(rate.hyperliquid.bid_size) : '-'}
                     </td>
                     <td className="py-3 px-3 text-right text-white font-mono bg-cyan-600/10">
-                      ${rate.hyperliquid.ask.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                      ${rate.hyperliquid.ask.toLocaleString(undefined, { minimumFractionDigits: 5, maximumFractionDigits: 5 })}
                     </td>
                     <td className="py-3 px-3 text-right text-text-secondary font-mono bg-cyan-600/10">
-                      -
+                      {rate.hyperliquid.ask_size ? formatVolume(rate.hyperliquid.ask_size) : '-'}
                     </td>
-                    <td className="py-3 px-3 text-right text-white bg-cyan-600/10">
-                      {formatVolume(rate.hyperliquid.volume_24h)}
+                    <td className="py-3 px-3 text-right text-white font-mono bg-cyan-600/10">
+                      {formatVolume(rate.hyperliquid.volume)}
                     </td>
                     <td className={`py-3 px-3 text-right font-mono bg-cyan-600/10 ${
                       (rate.funding_rate || 0) > 0 ? 'text-success' : 'text-error'
                     }`}>
-                      {((rate.funding_rate || 0) * 100 * 8).toFixed(4)}%
+                      {((rate.funding_rate || 0) * 100).toFixed(4)}%
                     </td>
                     <td className={`py-3 px-3 text-right font-mono bg-cyan-600/10 ${
                       (rate.annual_funding_rate || 0) > 0 ? 'text-success' : 'text-error'
                     }`}>
-                      {(rate.annual_funding_rate || 0).toFixed(1)}%
+                      {(rate.annual_funding_rate || 0).toFixed(2)}%
                     </td>
                     
                     {/* Bybit Data */}
                     <td className="py-3 px-3 text-right font-mono bg-orange-600/10">
                       {rate.bybit.available ? (
                         <span className="text-white">
-                          ${rate.bybit.bid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                          ${rate.bybit.bid.toLocaleString(undefined, { minimumFractionDigits: 5, maximumFractionDigits: 5 })}
                         </span>
                       ) : (
                         <span className="text-error">N/A</span>
@@ -467,15 +468,15 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
                     <td className="py-3 px-3 text-right font-mono bg-orange-600/10">
                       {rate.bybit.available ? (
                         <span className="text-white">
-                          ${rate.bybit.ask.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                          ${rate.bybit.ask.toLocaleString(undefined, { minimumFractionDigits: 5, maximumFractionDigits: 5 })}
                         </span>
                       ) : (
                         <span className="text-error">N/A</span>
                       )}
                     </td>
-                    <td className="py-3 px-3 text-right bg-orange-600/10">
+                    <td className="py-3 px-3 text-right font-mono bg-orange-600/10">
                       {rate.bybit.available ? (
-                        <span className="text-white">{formatVolume(rate.bybit.volume_24h)}</span>
+                        <span className="text-white">{formatVolume(rate.bybit.volume)}</span>
                       ) : (
                         <span className="text-error">N/A</span>
                       )}
