@@ -1,6 +1,7 @@
 'use client';
 
 import { useSharedWebSocket } from '../../hooks/useWebSocket';
+import Image from 'next/image';
 
 interface SidebarProps {
   activeTab: string;
@@ -29,6 +30,12 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
       name: 'Backtesting',
       icon: '⚡',
       description: 'Test strategies with historical data'
+    },
+    {
+      id: 'settings',
+      name: 'Settings',
+      icon: '⚙️',
+      description: 'Configure connection parameters'
     }
   ];
 
@@ -48,100 +55,68 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const connectionStatus = getConnectionStatus();
 
   return (
-    <div className="w-80 bg-secondary border-r border-white/10 flex flex-col">
-      {/* Header */}
-      <div className="p-6 border-b border-white/10">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center">
-            <span className="text-background font-bold text-sm">IC</span>
-      </div>
-          <div>
-            <h1 className="text-xl font-bold text-white">ICON Trading</h1>
-            <p className="text-sm text-text-secondary">Arbitrage Dashboard</p>
-      </div>
+    <div className="w-72 bg-card border-r border-white/10 p-6">
+      {/* Logo */}
+      <div className="flex items-center gap-3 mb-12">
+        <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center text-background font-bold text-xl">
+          IC
         </div>
-        
-        {/* Connection Status */}
-        <div className="space-y-3">
-          <div className="text-sm font-medium text-text-secondary">Backend Status</div>
-          <div className={`flex items-center gap-2 text-sm ${connectionStatus.color}`}>
-            <div className={`w-2 h-2 rounded-full ${connectionStatus.bgColor} ${isLoading ? 'animate-pulse' : ''}`}></div>
-            <span>{connectionStatus.text}</span>
-          </div>
-          
-          {/* Exchange Status - only show when connected */}
-          {isConnected && (
+        <div>
+          <h1 className="text-white font-bold">ICON Trading</h1>
+          <p className="text-sm text-text-secondary">Arbitrage Dashboard</p>
+        </div>
+      </div>
+
+      {/* Backend Status */}
+      <div className="mb-6">
+        <h2 className="text-sm font-medium text-text-secondary mb-2">Backend Status</h2>
+        <div className="flex items-center gap-2 text-success">
+          <div className="w-2 h-2 rounded-full bg-success" />
+          <span>Connected</span>
+        </div>
+      </div>
+
+      {/* Exchange Status */}
+      <div className="mb-8">
+        <h2 className="text-sm font-medium text-text-secondary mb-2">Exchange Status</h2>
         <div className="space-y-2">
-              <div className="text-sm font-medium text-text-secondary">Exchange Status</div>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-text-secondary">HyperLiquid</span>
-                  <div className="flex items-center gap-2 text-success">
-                    <div className="w-2 h-2 rounded-full bg-success"></div>
-                    <span>Connected</span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-text-secondary">Bybit</span>
-                  <div className="flex items-center gap-2 text-success">
-                    <div className="w-2 h-2 rounded-full bg-success"></div>
-                    <span>Connected</span>
-                  </div>
-                </div>
-              </div>
+          <div className="flex items-center justify-between">
+            <span className="text-white">HyperLiquid</span>
+            <div className="flex items-center gap-2 text-success">
+              <div className="w-2 h-2 rounded-full bg-success" />
+              <span>Connected</span>
             </div>
-          )}
-          
-          {error && (
-            <div className="text-xs text-error bg-error/10 rounded p-2">
-              {error}
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-white">Bybit</span>
+            <div className="flex items-center gap-2 text-success">
+              <div className="w-2 h-2 rounded-full bg-success" />
+              <span>Connected</span>
             </div>
-          )}
+          </div>
         </div>
       </div>
 
       {/* Navigation */}
-      <div className="flex-1 p-6">
-        <div className="space-y-2">
-          {tabs.map((tab) => (
-    <button
-              key={tab.id}
-              onClick={() => onTabChange(tab.id)}
-              className={`w-full text-left p-4 rounded-lg transition-all duration-200 group ${
-                activeTab === tab.id
-                  ? 'bg-accent text-background shadow-lg'
-          : 'text-text-secondary hover:bg-white/5 hover:text-white'
-      }`}
-    >
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{tab.icon}</span>
-                <div>
-                  <div className={`font-medium ${
-                    activeTab === tab.id ? 'text-background' : 'text-white'
-                  }`}>
-                    {tab.name}
-                  </div>
-                  <div className={`text-sm ${
-                    activeTab === tab.id 
-                      ? 'text-background/80' 
-                      : 'text-text-secondary group-hover:text-text-secondary/80'
-                  }`}>
-                    {tab.description}
-                  </div>
-                </div>
-              </div>
-    </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="p-6 border-t border-white/10">
-        <div className="text-xs text-text-secondary">
-          <div className="mb-2">Version 1.0.0</div>
-          <div>Real-time arbitrage monitoring</div>
-        </div>
-      </div>
+      <nav className="space-y-2">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => onTabChange(tab.id)}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+              activeTab === tab.id
+                ? 'bg-white/10 text-white'
+                : 'text-text-secondary hover:bg-white/5 hover:text-white'
+            }`}
+          >
+            <span className="text-2xl">{tab.icon}</span>
+            <div className="text-left">
+              <div className="font-medium">{tab.name}</div>
+              <div className="text-sm text-text-secondary">{tab.description}</div>
+            </div>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 } 
