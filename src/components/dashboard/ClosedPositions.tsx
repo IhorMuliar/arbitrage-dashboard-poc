@@ -173,10 +173,18 @@ export default function ClosedPositions() {
     return 'text-gray-400';
   };
 
-  const getSideColor = (side: string) => {
+  const getSideColor = (side: string, exchange: string) => {
     if (!side) return 'text-gray-400';
-    if (side.toLowerCase() === 'buy' || side.toLowerCase() === 'long') return 'text-green-400';
-    if (side.toLowerCase() === 'sell' || side.toLowerCase() === 'short') return 'text-red-400';
+    
+    // For HyperLiquid, swap the colors
+    if (exchange.toLowerCase() === 'hyperliquid') {
+      if (side.toLowerCase() === 'buy') return 'text-red-400';
+      if (side.toLowerCase() === 'sell') return 'text-green-400';
+    } else {
+      // For other exchanges (like Bybit), keep original colors
+      if (side.toLowerCase() === 'buy' || side.toLowerCase() === 'long') return 'text-green-400';
+      if (side.toLowerCase() === 'sell' || side.toLowerCase() === 'short') return 'text-red-400';
+    }
     return 'text-gray-400';
   };
 
@@ -184,6 +192,15 @@ export default function ClosedPositions() {
     if (exchange.toLowerCase() === 'bybit') return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
     if (exchange.toLowerCase() === 'hyperliquid') return 'bg-purple-500/20 text-purple-300 border-purple-500/30';
     return 'bg-gray-500/20 text-gray-300 border-gray-500/30';
+  };
+
+  const getDisplaySide = (side: string, exchange: string) => {
+    // Only swap the display for HyperLiquid trades
+    if (exchange.toLowerCase() === 'hyperliquid') {
+      if (side.toLowerCase() === 'buy') return 'SELL';
+      if (side.toLowerCase() === 'sell') return 'BUY';
+    }
+    return side?.toUpperCase();
   };
 
   // Sort and paginate positions with multi-criteria support
@@ -495,8 +512,8 @@ export default function ClosedPositions() {
                   <span className="font-bold text-white text-lg">
                     {position.symbol}
                   </span>
-                  <span className={`font-semibold text-sm px-2 py-1 rounded ${getSideColor(position.side)} bg-white/10`}>
-                    {position.side?.toUpperCase()}
+                  <span className={`font-semibold text-sm px-2 py-1 rounded ${getSideColor(position.side, position.exchange)} bg-white/10`}>
+                    {getDisplaySide(position.side, position.exchange)}
                   </span>
                   <div className="flex-1"></div>
                   <span className="text-text-secondary text-xs">
