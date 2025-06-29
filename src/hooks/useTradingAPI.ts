@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useCallback } from 'react';
+import { endpoints } from '../config/endpoints';
 
 // API base URL - in production this would come from environment variables
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = endpoints.api.base;
 
 export interface TradingResult {
   success: boolean;
