@@ -87,7 +87,7 @@ interface AccountBalances {
 interface WebSocketContextType {
   data: ArbitrageData | null;
   activePositions: Position[];
-  closedPositions: Position[];
+  closedPositions: any[]; // Can be Position[] or TradeData[] depending on backend
   balances: AccountBalances | null;
   isConnected: boolean;
   isLoading: boolean;
@@ -100,7 +100,7 @@ const WebSocketContext = createContext<WebSocketContextType | undefined>(undefin
 export function WebSocketProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<ArbitrageData | null>(null);
   const [activePositions, setActivePositions] = useState<Position[]>([]);
-  const [closedPositions, setClosedPositions] = useState<Position[]>([]);
+  const [closedPositions, setClosedPositions] = useState<any[]>([]); // Generic array for flexibility
   const [balances, setBalances] = useState<AccountBalances | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -109,6 +109,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   const ws = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isReconnecting = useRef(false);
+  const hasInitialFetched = useRef(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -120,11 +121,70 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     try {
       ws.current = new WebSocket('ws://localhost:8765');
       
-      ws.current.onopen = () => {
+      ws.current.onopen = async () => {
         console.log('✅ Shared: WebSocket connection established');
         setIsConnected(true);
         setError(null);
         isReconnecting.current = false;
+        
+        // Make single initial API fetch if not already done
+        if (!hasInitialFetched.current) {
+          console.log('🔄 Making initial API fetch...');
+          hasInitialFetched.current = true;
+          
+          try {
+            const response = await fetch('http://localhost:8080/api/positions/fetch', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                days: 7,
+                limit: 50
+              })
+            });
+
+            if (response.ok) {
+              const result = await response.json();
+              console.log('✅ Initial API fetch successful');
+              
+              // Set the fetched data immediately
+              if (result.data) {
+                setActivePositions(result.data.active_positions || []);
+                setClosedPositions(result.data.closed_positions || []);
+                console.log(`📊 Loaded ${result.data.active_positions?.length || 0} active positions`);
+                console.log(`📄 Loaded ${result.data.closed_positions?.length || 0} closed positions`);
+                console.log('📊 DEBUG: Initial active positions:', result.data.active_positions);
+              }
+            } else {
+              console.error('❌ Initial API fetch failed:', response.status);
+            }
+          } catch (err) {
+            console.error('❌ Error in initial API fetch:', err);
+          }
+        }
+        
+        // Send subscription requests after connection is established
+        if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+          // Subscribe to arbitrage data
+          ws.current.send(JSON.stringify({
+            type: 'subscribe_arbitrage_data'
+          }));
+          
+          // Request active positions (for real-time updates)
+          ws.current.send(JSON.stringify({
+            type: 'get_active_positions'
+          }));
+          
+          // Request closed positions (for real-time updates)
+          ws.current.send(JSON.stringify({
+            type: 'get_closed_positions',
+            days: 7,
+            limit: 50
+          }));
+          
+          console.log('📡 Shared: Sent subscription requests for real-time updates');
+        }
       };
 
       ws.current.onmessage = (event) => {
@@ -137,6 +197,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
             setIsLoading(false); // Data received, no longer loading
           } else if (message.type === 'active_positions') {
             console.log('📊 Shared: Received active positions with', message.data.active_positions?.length, 'positions');
+            console.log('📊 DEBUG: Active positions data:', message.data);
             setActivePositions(message.data.active_positions || []);
           } else if (message.type === 'closed_positions') {
             console.log('📄 Shared: Received closed positions with', message.data.closed_positions?.length, 'positions');

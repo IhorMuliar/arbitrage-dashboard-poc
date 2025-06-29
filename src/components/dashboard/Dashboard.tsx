@@ -125,7 +125,6 @@ export default function Dashboard() {
             
             {/* Active Positions Monitor */}
             <ActivePositionsMonitor 
-              positions={positions}
               onClosePosition={handleClosePosition}
               onModifyPosition={handleModifyPosition}
             />

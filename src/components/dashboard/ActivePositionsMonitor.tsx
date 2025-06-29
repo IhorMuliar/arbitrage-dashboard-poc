@@ -36,6 +36,22 @@ export default function ActivePositionsMonitor({ onClosePosition, onModifyPositi
   const [closingPositions, setClosingPositions] = useState<Set<string>>(new Set());
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Debug logging for activePositions
+  useEffect(() => {
+    console.log('🔍 ActivePositionsMonitor - activePositions updated:', activePositions);
+    console.log('🔍 ActivePositionsMonitor - activePositions length:', activePositions.length);
+    console.log('🔍 ActivePositionsMonitor - isConnected:', isConnected);
+  }, [activePositions, isConnected]);
+
+  // Reset to first page when positions change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activePositions]);
+
   // Update loading state when WebSocket connects and positions are received
   useEffect(() => {
     if (isConnected) {
@@ -102,6 +118,21 @@ export default function ActivePositionsMonitor({ onClosePosition, onModifyPositi
     if (pnl > 0) return 'text-green-400';
     if (pnl < 0) return 'text-red-400';
     return 'text-gray-400';
+  };
+
+  // Pagination calculations
+  const totalPages = Math.ceil(activePositions.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedPositions = activePositions.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleItemsPerPageChange = (items: number) => {
+    setItemsPerPage(items);
+    setCurrentPage(1);
   };
 
   if (!isConnected) {
@@ -228,12 +259,13 @@ export default function ActivePositionsMonitor({ onClosePosition, onModifyPositi
       </div>
 
       <div className="space-y-4">
-        {activePositions.map((position) => {
-          const isClosing = closingPositions.has(position.symbol);
-          const pairName = formatPairName(position.symbol);
+        {paginatedPositions.map((position, index) => {
+          const symbol = position.symbol || `unknown-${index}`;
+          const isClosing = closingPositions.has(symbol);
+          const pairName = formatPairName(symbol);
           
           return (
-            <div key={position.symbol} className="bg-white/5 rounded-lg border border-white/10 p-4">
+            <div key={symbol} className="bg-white/5 rounded-lg border border-white/10 p-4">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="text-lg font-bold text-white">{pairName}</div>
@@ -242,16 +274,16 @@ export default function ActivePositionsMonitor({ onClosePosition, onModifyPositi
                       ? 'bg-green-500/20 text-green-400 border border-green-500/30'
                       : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
                   }`}>
-                    {position.status.toUpperCase()}
+                    {position.status ? position.status.toUpperCase() : 'UNKNOWN'}
                   </div>
                   <div className="text-sm text-text-secondary">
-                    ${position.usdt_amount.toLocaleString()} USDT
+                    ${position.usdt_amount ? position.usdt_amount.toLocaleString() : '0'} USDT
                   </div>
                 </div>
                 
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => onModifyPosition && onModifyPosition(position.symbol)}
+                    onClick={() => onModifyPosition && onModifyPosition(symbol)}
                     className="px-3 py-1 text-sm bg-white/10 hover:bg-white/20 text-white rounded transition-colors"
                   >
                     Modify
@@ -280,16 +312,16 @@ export default function ActivePositionsMonitor({ onClosePosition, onModifyPositi
                   <div className="space-y-1">
                     <div className="flex justify-between">
                       <span className="text-text-secondary">Entry:</span>
-                      <span className="text-white font-mono">{formatCurrency(position.hyperliquid.entry_price)}</span>
+                      <span className="text-white font-mono">{formatCurrency(position.hyperliquid?.entry_price || 0)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-text-secondary">Size:</span>
-                      <span className="text-white font-mono">{position.hyperliquid.size.toFixed(6)}</span>
+                      <span className="text-white font-mono">{(position.hyperliquid?.size || 0).toFixed(6)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-text-secondary">PnL:</span>
-                      <span className={`font-mono font-bold ${getPnLColor(position.hyperliquid.unrealized_pnl)}`}>
-                        {formatCurrency(position.hyperliquid.unrealized_pnl)}
+                      <span className={`font-mono font-bold ${getPnLColor(position.hyperliquid?.unrealized_pnl || 0)}`}>
+                        {formatCurrency(position.hyperliquid?.unrealized_pnl || 0)}
                       </span>
                     </div>
                   </div>
@@ -301,16 +333,16 @@ export default function ActivePositionsMonitor({ onClosePosition, onModifyPositi
                   <div className="space-y-1">
                     <div className="flex justify-between">
                       <span className="text-text-secondary">Entry:</span>
-                      <span className="text-white font-mono">{formatCurrency(position.bybit.entry_price)}</span>
+                      <span className="text-white font-mono">{formatCurrency(position.bybit?.entry_price || 0)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-text-secondary">Amount:</span>
-                      <span className="text-white font-mono">{position.bybit.amount.toFixed(6)}</span>
+                      <span className="text-white font-mono">{(position.bybit?.amount || 0).toFixed(6)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-text-secondary">PnL:</span>
-                      <span className={`font-mono font-bold ${getPnLColor(position.bybit.unrealized_pnl)}`}>
-                        {formatCurrency(position.bybit.unrealized_pnl)}
+                      <span className={`font-mono font-bold ${getPnLColor(position.bybit?.unrealized_pnl || 0)}`}>
+                        {formatCurrency(position.bybit?.unrealized_pnl || 0)}
                       </span>
                     </div>
                   </div>
@@ -322,20 +354,20 @@ export default function ActivePositionsMonitor({ onClosePosition, onModifyPositi
                   <div className="space-y-1">
                     <div className="flex justify-between">
                       <span className="text-text-secondary">Total PnL:</span>
-                      <span className={`font-mono font-bold ${getPnLColor(position.total.net_pnl)}`}>
-                        {formatCurrency(position.total.net_pnl)}
+                      <span className={`font-mono font-bold ${getPnLColor(position.total?.net_pnl || 0)}`}>
+                        {formatCurrency(position.total?.net_pnl || 0)}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-text-secondary">Funding:</span>
                       <span className="text-green-400 font-mono">
-                        {formatCurrency(position.total.funding_earned)}
+                        {formatCurrency(position.total?.funding_earned || 0)}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-text-secondary">Return:</span>
-                      <span className={`font-mono font-bold ${getPnLColor(position.total.net_pnl)}`}>
-                        {formatPercentage((position.total.net_pnl / position.usdt_amount) * 100)}
+                      <span className={`font-mono font-bold ${getPnLColor(position.total?.net_pnl || 0)}`}>
+                        {formatPercentage(((position.total?.net_pnl || 0) / (position.usdt_amount || 1)) * 100)}
                       </span>
                     </div>
                   </div>
@@ -347,18 +379,18 @@ export default function ActivePositionsMonitor({ onClosePosition, onModifyPositi
                   <div className="space-y-1">
                     <div className="flex justify-between">
                       <span className="text-text-secondary">Liq. Risk:</span>
-                      <span className={`font-mono ${getRiskColor(position.hyperliquid.liquidation_risk_pct)}`}>
-                        {position.hyperliquid.liquidation_risk_pct.toFixed(1)}%
+                      <span className={`font-mono ${getRiskColor(position.hyperliquid?.liquidation_risk_pct || 0)}`}>
+                        {(position.hyperliquid?.liquidation_risk_pct || 0).toFixed(1)}%
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-text-secondary">Leverage:</span>
-                      <span className="text-white font-mono">{position.hyperliquid.leverage.toFixed(1)}x</span>
+                      <span className="text-white font-mono">{(position.hyperliquid?.leverage || 0).toFixed(1)}x</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-text-secondary">Funding Rate:</span>
                       <span className="text-green-400 font-mono">
-                        {formatPercentage(position.entry_funding_rate * 100)}
+                        {formatPercentage((position.entry_funding_rate || 0) * 100)}
                       </span>
                     </div>
                   </div>
@@ -381,6 +413,82 @@ export default function ActivePositionsMonitor({ onClosePosition, onModifyPositi
           );
         })}
       </div>
+
+              {/* Pagination controls */}
+        {totalPages > 1 && (
+          <div className="mt-6 pt-4 border-t border-white/10 flex justify-between items-center">
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-text-secondary">
+                Showing {startIndex + 1}-{Math.min(endIndex, activePositions.length)} of {activePositions.length} positions
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-text-secondary">Items per page:</span>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                  className="bg-white/10 border border-white/20 rounded px-2 py-1 text-white text-sm"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-3 py-1 bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm transition-colors"
+              >
+                Previous
+              </button>
+              
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  const pageNum = i + 1;
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => handlePageChange(pageNum)}
+                      className={`px-3 py-1 rounded text-sm transition-colors ${
+                        currentPage === pageNum
+                          ? 'bg-accent text-white'
+                          : 'bg-white/10 hover:bg-white/20 text-text-secondary'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+                {totalPages > 5 && (
+                  <>
+                    <span className="text-text-secondary px-2">...</span>
+                    <button
+                      onClick={() => handlePageChange(totalPages)}
+                      className={`px-3 py-1 rounded text-sm transition-colors ${
+                        currentPage === totalPages
+                          ? 'bg-accent text-white'
+                          : 'bg-white/10 hover:bg-white/20 text-text-secondary'
+                      }`}
+                    >
+                      {totalPages}
+                    </button>
+                  </>
+                )}
+              </div>
+              
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
     </div>
   );
 } 
