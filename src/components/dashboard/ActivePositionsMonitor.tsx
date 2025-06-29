@@ -20,8 +20,9 @@ const formatCurrency = (value: number) => {
 };
 
 const formatPercentage = (value: number) => {
-  const sign = value >= 0 ? '+' : '';
-  return `${sign}${value.toFixed(3)}%`;
+  const safeValue = value || 0;
+  const sign = safeValue >= 0 ? '+' : '';
+  return `${sign}${safeValue.toFixed(3)}%`;
 };
 
 const formatPairName = (pair: string) => {
@@ -426,12 +427,12 @@ export default function ActivePositionsMonitor({ onClosePosition, onModifyPositi
                 <select
                   value={itemsPerPage}
                   onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-                  className="bg-white/10 border border-white/20 rounded px-2 py-1 text-white text-sm"
+                  className="bg-gray-800 border border-white/20 rounded px-2 py-1 text-white text-sm relative z-10"
                 >
-                  <option value={5}>5</option>
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
+                  <option value={5} className="bg-gray-800 text-white">5</option>
+                  <option value={10} className="bg-gray-800 text-white">10</option>
+                  <option value={20} className="bg-gray-800 text-white">20</option>
+                  <option value={50} className="bg-gray-800 text-white">50</option>
                 </select>
               </div>
             </div>

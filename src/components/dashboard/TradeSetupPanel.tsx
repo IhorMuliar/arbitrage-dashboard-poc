@@ -202,8 +202,8 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
               <span>Valid arbitrage pair</span>
             </div>
             <div className="text-xs text-text-secondary">
-              8h Funding rate: {(currentPairData.funding_rate * 100 * 8).toFixed(4)}% 
-              ({currentPairData.annual_funding_rate.toFixed(2)}% APY)
+              8h Funding rate: {((currentPairData.funding_rate || 0) * 100 * 8).toFixed(4)}% 
+              ({(currentPairData.annual_funding_rate || 0).toFixed(2)}% APY)
             </div>
             <div className="text-xs text-text-secondary">
               HyperLiquid bid price: ${currentPairData.hyperliquid.bid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })} |
@@ -361,16 +361,16 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <span className="text-sm text-text-secondary">Fee Breakdown:</span>
-              <span className="text-error font-mono font-bold">-${tradePreview.fees.total.toFixed(2)}</span>
+              <span className="text-error font-mono font-bold">-${(tradePreview.fees.total || 0).toFixed(2)}</span>
             </div>
             <div className="space-y-1 text-xs">
               <div className="flex justify-between">
                 <span className="text-text-secondary">HyperLiquid (0.015%):</span>
-                <span className="text-white font-mono">${tradePreview.fees.hyperliquid.toFixed(4)}</span>
+                <span className="text-white font-mono">${(tradePreview.fees.hyperliquid || 0).toFixed(4)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-text-secondary">Bybit (0.10%):</span>
-                <span className="text-white font-mono">${tradePreview.fees.bybit.toFixed(4)}</span>
+                <span className="text-white font-mono">${(tradePreview.fees.bybit || 0).toFixed(4)}</span>
               </div>
             </div>
           </div>
@@ -381,26 +381,26 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-text-secondary">8 Hours:</span>
-                <span className={`font-mono font-bold ${tradePreview.pnlTimeframes.eightHour >= 0 ? 'text-success' : 'text-error'}`}>
-                  {tradePreview.pnlTimeframes.eightHour >= 0 ? '+' : ''}${tradePreview.pnlTimeframes.eightHour.toFixed(2)}
+                <span className={`font-mono font-bold ${(tradePreview.pnlTimeframes.eightHour || 0) >= 0 ? 'text-success' : 'text-error'}`}>
+                  {(tradePreview.pnlTimeframes.eightHour || 0) >= 0 ? '+' : ''}${(tradePreview.pnlTimeframes.eightHour || 0).toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-text-secondary">1 Day:</span>
-                <span className={`font-mono font-bold ${tradePreview.pnlTimeframes.oneDay >= 0 ? 'text-success' : 'text-error'}`}>
-                  {tradePreview.pnlTimeframes.oneDay >= 0 ? '+' : ''}${tradePreview.pnlTimeframes.oneDay.toFixed(2)}
+                <span className={`font-mono font-bold ${(tradePreview.pnlTimeframes.oneDay || 0) >= 0 ? 'text-success' : 'text-error'}`}>
+                  {(tradePreview.pnlTimeframes.oneDay || 0) >= 0 ? '+' : ''}${(tradePreview.pnlTimeframes.oneDay || 0).toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-text-secondary">3 Days:</span>
-                <span className={`font-mono font-bold ${tradePreview.pnlTimeframes.threeDays >= 0 ? 'text-success' : 'text-error'}`}>
-                  {tradePreview.pnlTimeframes.threeDays >= 0 ? '+' : ''}${tradePreview.pnlTimeframes.threeDays.toFixed(2)}
+                <span className={`font-mono font-bold ${(tradePreview.pnlTimeframes.threeDays || 0) >= 0 ? 'text-success' : 'text-error'}`}>
+                  {(tradePreview.pnlTimeframes.threeDays || 0) >= 0 ? '+' : ''}${(tradePreview.pnlTimeframes.threeDays || 0).toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-text-secondary">1 Week:</span>
-                <span className={`font-mono font-bold ${tradePreview.pnlTimeframes.oneWeek >= 0 ? 'text-success' : 'text-error'}`}>
-                  {tradePreview.pnlTimeframes.oneWeek >= 0 ? '+' : ''}${tradePreview.pnlTimeframes.oneWeek.toFixed(2)}
+                <span className={`font-mono font-bold ${(tradePreview.pnlTimeframes.oneWeek || 0) >= 0 ? 'text-success' : 'text-error'}`}>
+                  {(tradePreview.pnlTimeframes.oneWeek || 0) >= 0 ? '+' : ''}${(tradePreview.pnlTimeframes.oneWeek || 0).toFixed(2)}
                 </span>
               </div>
             </div>

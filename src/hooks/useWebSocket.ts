@@ -139,8 +139,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                days: 7,
-                limit: 50
+                days: 7
               })
             });
 
@@ -179,8 +178,8 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
           // Request closed positions (for real-time updates)
           ws.current.send(JSON.stringify({
             type: 'get_closed_positions',
-            days: 7,
-            limit: 50
+            days: 7
+            // Remove limit to get ALL trades from last 7 days
           }));
           
           console.log('📡 Shared: Sent subscription requests for real-time updates');

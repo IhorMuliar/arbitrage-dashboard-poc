@@ -80,12 +80,13 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
   };
 
   const formatVolume = (volume: number): string => {
-    if (volume >= 1_000_000) {
-      return `${(volume / 1_000_000).toFixed(1)}M`;
-    } else if (volume >= 1_000) {
-      return `${(volume / 1_000).toFixed(1)}K`;
+    const safeVolume = volume || 0;
+    if (safeVolume >= 1_000_000) {
+      return `${(safeVolume / 1_000_000).toFixed(1)}M`;
+    } else if (safeVolume >= 1_000) {
+      return `${(safeVolume / 1_000).toFixed(1)}K`;
     } else {
-      return volume.toFixed(0);
+      return safeVolume.toFixed(0);
     }
   };
 
@@ -443,14 +444,14 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
                       {formatVolume(rate.hyperliquid.volume_24h)}
                     </td>
                     <td className={`py-3 px-3 text-right font-mono bg-cyan-600/10 ${
-                      rate.funding_rate > 0 ? 'text-success' : 'text-error'
+                      (rate.funding_rate || 0) > 0 ? 'text-success' : 'text-error'
                     }`}>
-                      {(rate.funding_rate * 100 * 8).toFixed(4)}%
+                      {((rate.funding_rate || 0) * 100 * 8).toFixed(4)}%
                     </td>
                     <td className={`py-3 px-3 text-right font-mono bg-cyan-600/10 ${
-                      rate.annual_funding_rate > 0 ? 'text-success' : 'text-error'
+                      (rate.annual_funding_rate || 0) > 0 ? 'text-success' : 'text-error'
                     }`}>
-                      {rate.annual_funding_rate.toFixed(1)}%
+                      {(rate.annual_funding_rate || 0).toFixed(1)}%
                     </td>
                     
                     {/* Bybit Data */}
