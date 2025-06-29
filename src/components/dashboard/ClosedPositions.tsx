@@ -173,25 +173,26 @@ export default function ClosedPositions() {
     return 'text-gray-400';
   };
 
+  const getExchangeBadgeColor = (exchange: string) => {
+    if (exchange.toLowerCase() === 'hyperliquid') {
+      return 'border-purple-500 bg-purple-500/20 text-purple-300';
+    }
+    return 'border-blue-500 bg-blue-500/20 text-blue-300';
+  };
+
   const getSideColor = (side: string, exchange: string) => {
     if (!side) return 'text-gray-400';
     
-    // For HyperLiquid, swap the colors
+    // For HyperLiquid, swap the colors with higher contrast
     if (exchange.toLowerCase() === 'hyperliquid') {
-      if (side.toLowerCase() === 'buy') return 'text-red-400';
-      if (side.toLowerCase() === 'sell') return 'text-green-400';
+      if (side.toLowerCase() === 'buy') return 'text-red-500 bg-red-500/20 border border-red-500';
+      if (side.toLowerCase() === 'sell') return 'text-green-500 bg-green-500/20 border border-green-500';
     } else {
-      // For other exchanges (like Bybit), keep original colors
-      if (side.toLowerCase() === 'buy' || side.toLowerCase() === 'long') return 'text-green-400';
-      if (side.toLowerCase() === 'sell' || side.toLowerCase() === 'short') return 'text-red-400';
+      // For other exchanges (like Bybit), keep original colors but enhance contrast
+      if (side.toLowerCase() === 'buy' || side.toLowerCase() === 'long') return 'text-green-500 bg-green-500/20 border border-green-500';
+      if (side.toLowerCase() === 'sell' || side.toLowerCase() === 'short') return 'text-red-500 bg-red-500/20 border border-red-500';
     }
     return 'text-gray-400';
-  };
-
-  const getExchangeBadgeColor = (exchange: string) => {
-    if (exchange.toLowerCase() === 'bybit') return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
-    if (exchange.toLowerCase() === 'hyperliquid') return 'bg-purple-500/20 text-purple-300 border-purple-500/30';
-    return 'bg-gray-500/20 text-gray-300 border-gray-500/30';
   };
 
   const getDisplaySide = (side: string, exchange: string) => {
@@ -500,19 +501,19 @@ export default function ClosedPositions() {
         {paginatedPositions.map((position, index) => (
           <div
             key={`${position.symbol}-${position.execution_time}-${index}`}
-            className="bg-gradient-to-r from-white/5 to-white/3 border border-white/10 rounded-lg p-4 hover:from-white/8 hover:to-white/5 transition-all duration-200 hover:border-white/20"
+            className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg p-4 hover:bg-gray-800/70 transition-all"
           >
             <div className="flex justify-between items-start">
               <div className="flex-1">
                 {/* Header Row */}
                 <div className="flex items-center gap-3 mb-3">
-                  <div className={`text-xs px-2 py-1 rounded border ${getExchangeBadgeColor(position.exchange)}`}>
+                  <div className={`text-xs px-3 py-1.5 rounded-md ${getExchangeBadgeColor(position.exchange)}`}>
                     {position.exchange.toUpperCase()}
                   </div>
                   <span className="font-bold text-white text-lg">
                     {position.symbol}
                   </span>
-                  <span className={`font-semibold text-sm px-2 py-1 rounded ${getSideColor(position.side, position.exchange)} bg-white/10`}>
+                  <span className={`font-semibold text-sm px-3 py-1.5 rounded-md ${getSideColor(position.side, position.exchange)}`}>
                     {getDisplaySide(position.side, position.exchange)}
                   </span>
                   <div className="flex-1"></div>
@@ -523,46 +524,35 @@ export default function ClosedPositions() {
                 
                 {/* Details Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-                  <div className="bg-white/5 rounded p-2">
-                    <div className="text-text-secondary text-xs mb-1">Entry Price</div>
-                    <div className="text-white font-mono font-medium">
-                      {formatCurrency(position.price)}
-                    </div>
+                  <div>
+                    <div className="text-gray-400 mb-1">Entry Price</div>
+                    <div className="font-mono font-medium text-white">${position.price?.toFixed(2)}</div>
                   </div>
-                  <div className="bg-white/5 rounded p-2">
-                    <div className="text-text-secondary text-xs mb-1">Quantity</div>
-                    <div className="text-white font-mono font-medium">
-                      {(position.quantity || 0).toFixed(6)}
-                    </div>
+                  <div>
+                    <div className="text-gray-400 mb-1">Quantity</div>
+                    <div className="font-mono font-medium text-white">{(position.quantity || 0).toFixed(6)}</div>
                   </div>
-                  <div className="bg-white/5 rounded p-2">
-                    <div className="text-text-secondary text-xs mb-1">Dollar equivalent</div>
-                    <div className="text-white font-mono font-medium">
-                      {formatCurrency(position.price * position.quantity)}
-                    </div>
+                  <div>
+                    <div className="text-gray-400 mb-1">Dollar equivalent</div>
+                    <div className="font-mono font-medium text-white">${(position.price || 0) * (position.quantity || 0).toFixed(4)}</div>
                   </div>
-                  <div className="bg-white/5 rounded p-2">
-                    <div className="text-text-secondary text-xs mb-1">Fee Paid</div>
-                    <div className="text-white font-mono font-medium">
-                      {formatCurrency(position.fee)}
-                    </div>
+                  <div>
+                    <div className="text-gray-400 mb-1">Fee Paid</div>
+                    <div className="font-mono font-medium text-white">${(position.fee || 0).toFixed(4)}</div>
                   </div>
-                  <div className="bg-white/5 rounded p-2">
-                    <div className="text-text-secondary text-xs mb-1">Time</div>
-                    <div className="text-white font-mono text-xs">
-                      {new Date(position.execution_time).toLocaleString()}
-                    </div>
+                  <div>
+                    <div className="text-gray-400 mb-1">Time</div>
+                    <div className="font-mono font-medium text-white">{new Date(position.execution_time).toLocaleString()}</div>
                   </div>
                 </div>
                 
                 {/* PnL Section */}
                 {position.pnl !== undefined && position.pnl !== null && (
-                  <div className="mt-3 pt-3 border-t border-white/10">
-                    <div className="flex items-center justify-between bg-white/5 rounded p-3">
-                      <span className="text-text-secondary font-medium">Realized PnL</span>
-                      <span className={`font-mono font-bold text-lg ${getPnLColor(position.pnl)}`}>
-                        {position.pnl > 0 ? '+' : ''}
-                        {formatCurrency(position.pnl)}
+                  <div className="mt-3 pt-3 border-t border-gray-700">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400">Realized PnL</span>
+                      <span className={`font-mono font-medium ${position.pnl > 0 ? 'text-green-500' : position.pnl < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                        {position.pnl > 0 ? '+' : ''}{position.pnl?.toFixed(4)}
                       </span>
                     </div>
                   </div>
