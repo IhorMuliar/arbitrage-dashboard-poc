@@ -493,9 +493,13 @@ export default function FundingRatesTable({ onPairSelect }: FundingRatesTablePro
                     
                     {/* Next Funding */}
                     <td className="py-3 px-3 text-center">
-                      <div className="text-sm font-mono text-text-secondary">
-                        --:--:--
-                      </div>
+                      {rate.next_funding_time ? (
+                        <CountdownTimer targetTime={rate.next_funding_time} />
+                      ) : (
+                        <div className="text-sm font-mono text-text-secondary">
+                          --:--:--
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );

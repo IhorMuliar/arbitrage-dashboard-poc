@@ -4,14 +4,17 @@ import React, { useState, useEffect, useRef, useCallback, createContext, useCont
 
 export interface ArbitragePair {
   pair: string;
+  hyperliquid_symbol: string;
+  bybit_symbol: string;
   funding_rate: number;
+  next_funding_time: number;  // Timestamp in milliseconds
   annual_funding_rate: number;
   hyperliquid: {
     bid: number;
     ask: number;
+    bid_size: number;
+    ask_size: number;
     volume: number;
-    bid_size?: number;
-    ask_size?: number;
   };
   bybit: {
     bid: number;
