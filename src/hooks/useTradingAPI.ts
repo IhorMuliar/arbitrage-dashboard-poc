@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useCallback } from 'react';
 
 // API base URL - in production this would come from environment variables
