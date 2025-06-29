@@ -182,6 +182,11 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
             // Remove limit to get ALL trades from last 7 days
           }));
           
+          // Request account balances
+          ws.current.send(JSON.stringify({
+            type: 'get_account_balances'
+          }));
+          
           console.log('📡 Shared: Sent subscription requests for real-time updates');
         }
       };
@@ -203,6 +208,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
             setClosedPositions(message.data.closed_positions || []);
           } else if (message.type === 'account_balances') {
             console.log('💰 Shared: Received account balances');
+            console.log('💰 DEBUG: Account balances data:', message.data);
             setBalances(message.data.balances || null);
           } else if (message.type === 'connection') {
             console.log('🤝 Shared connection established:', message.message || 'Ready');

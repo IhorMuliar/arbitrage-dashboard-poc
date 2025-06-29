@@ -59,6 +59,13 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
   const availableBalance = getAvailableBalance();
   const maxPositionSize = Math.floor(availableBalance * 0.97); // Use 95% as safety margin
 
+  // Debug logging for balance data
+  useEffect(() => {
+    console.log('🔍 TradeSetupPanel - isConnected:', isConnected);
+    console.log('🔍 TradeSetupPanel - accountBalances:', accountBalances);
+    console.log('🔍 TradeSetupPanel - availableBalance:', availableBalance);
+  }, [isConnected, accountBalances, availableBalance]);
+
   // Get available pairs from real data (only when connected)
   const availablePairs = isConnected && arbitrageData?.pairs
     ? arbitrageData.pairs
@@ -348,6 +355,14 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
                 </div>
               </div>
             </div>
+          ) : isConnected && !accountBalances ? (
+            <div className="bg-white/5 rounded-lg border border-white/10 p-3 space-y-2">
+              <div className="text-xs font-medium text-white mb-2">Account Balances</div>
+              <div className="text-center py-4">
+                <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                <div className="text-xs text-text-secondary">Loading account balances...</div>
+              </div>
+            </div>
           ) : null}
         </div>
       </div>
@@ -357,10 +372,18 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
         <div className="space-y-4 p-4 bg-white/5 rounded-lg border border-white/10">
           <h3 className="text-sm font-medium text-white">Trade Preview</h3>
           
-          {/* Fee Breakdown */}
+          {/* Estimated 8h funding reward */}
           <div className="space-y-2">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-text-secondary">Fee Breakdown:</span>
+              <span className="text-sm font-bold text-white">Estimated 8h funding reward:</span>
+              <span className="text-success font-mono font-bold">+${(tradePreview.estimatedProfit || 0).toFixed(2)}</span>
+            </div>
+          </div>
+          
+          {/* Fee Breakdown */}
+          <div className="space-y-2 pt-2 border-t border-white/10">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-bold text-white">Fee Breakdown:</span>
               <span className="text-error font-mono font-bold">-${(tradePreview.fees.total || 0).toFixed(2)}</span>
             </div>
             <div className="space-y-1 text-xs">
@@ -377,7 +400,7 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
 
           {/* Profit Projections */}
           <div className="space-y-2 pt-2 border-t border-white/10">
-            <div className="text-sm text-text-secondary">💰 Net PnL by Timeframe (after fees):</div>
+            <div className="text-sm font-bold text-white">Net PnL by Timeframe (after fees):</div>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-text-secondary">8 Hours:</span>
@@ -449,4 +472,4 @@ export default function TradeSetupPanel({ selectedPair, onPairChange, onExecuteT
       )}
     </div>
   );
-} 
+}
