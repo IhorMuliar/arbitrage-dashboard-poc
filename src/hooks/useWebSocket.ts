@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, createContext, useContext, ReactNode } from 'react';
+import { endpoints } from '../config/endpoints';
 
 export interface ArbitragePair {
   pair: string;
@@ -121,7 +122,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     if (!isClient || isReconnecting.current) return;
 
     try {
-      ws.current = new WebSocket('ws://localhost:8765');
+      ws.current = new WebSocket(endpoints.ws.base);
       
       ws.current.onopen = async () => {
         console.log('✅ Shared: WebSocket connection established');
@@ -135,7 +136,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
           hasInitialFetched.current = true;
           
           try {
-            const response = await fetch('http://localhost:8080/api/positions/fetch', {
+            const response = await fetch(`${endpoints.api.base}${endpoints.api.positions}/fetch`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
