@@ -48,10 +48,14 @@ export default function ActivePositionsMonitor({ onClosePosition, onModifyPositi
     console.log('🔍 ActivePositionsMonitor - isConnected:', isConnected);
   }, [activePositions, isConnected]);
 
-  // Reset to first page when positions change
+  // Smart pagination: only reset when current page becomes invalid
   useEffect(() => {
-    setCurrentPage(1);
-  }, [activePositions]);
+    const totalPages = Math.ceil(activePositions.length / itemsPerPage);
+    // Only reset if current page is beyond available pages and we have data
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [activePositions, itemsPerPage, currentPage]);
 
   // Update loading state when WebSocket connects and positions are received
   useEffect(() => {

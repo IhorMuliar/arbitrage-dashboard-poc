@@ -84,10 +84,14 @@ export default function ClosedPositions() {
     }
   }, [isConnected, wsError]);
 
-  // Reset to first page when positions change
+  // Smart pagination: only reset to page 1 when current page becomes invalid
   useEffect(() => {
-    setCurrentPage(1);
-  }, [closedPositions]);
+    const totalPages = Math.ceil(closedPositions.length / itemsPerPage);
+    // Only reset if current page is beyond available pages and we have data
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [closedPositions, itemsPerPage, currentPage]);
 
   // Simulate periodic refresh indicator
   useEffect(() => {
@@ -304,7 +308,6 @@ export default function ClosedPositions() {
           </div>
           
           <div className="text-sm text-text-secondary bg-white/5 px-3 py-1 rounded">
-            WebSocket Only
           </div>
         </div>
         <div className="text-center py-12">
