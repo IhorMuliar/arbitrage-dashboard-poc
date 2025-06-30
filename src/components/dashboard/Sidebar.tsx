@@ -10,7 +10,7 @@ interface SidebarProps {
 
 export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   // Use shared WebSocket connection for status
-  const { isConnected, isLoading, error } = useSharedWebSocket();
+  const { isConnected, isLoading, error, data, activePositions, closedPositions, balances } = useSharedWebSocket();
 
   const tabs = [
     {
@@ -41,18 +41,87 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
 
   const getConnectionStatus = () => {
     if (error) {
-      return { status: 'error', color: 'text-error', bgColor: 'bg-error', text: 'Connection Error' };
+      return { status: 'error', color: 'text-error', bgColor: 'bg-error', text: 'Connection Error', label: 'Backend Status' };
     }
     if (isConnected) {
-      return { status: 'connected', color: 'text-success', bgColor: 'bg-success', text: 'Connected' };
+      return { status: 'connected', color: 'text-success', bgColor: 'bg-success', text: 'Connected', label: 'Backend Status' };
     }
     if (isLoading) {
-      return { status: 'connecting', color: 'text-warning', bgColor: 'bg-warning', text: 'Connecting...' };
+      return { status: 'connecting', color: 'text-warning', bgColor: 'bg-warning', text: 'Connecting...', label: 'Backend Status' };
     }
-    return { status: 'disconnected', color: 'text-error', bgColor: 'bg-error', text: 'Disconnected' };
+    return { status: 'disconnected', color: 'text-error', bgColor: 'bg-error', text: 'Disconnected', label: 'Backend Status' };
+  };
+
+  const getExchangeStatus = (exchangeName: string) => {
+    // Debug logging to see actual data structure
+    console.log('🔍 DEBUG Exchange Status Check:', {
+      exchangeName,
+      isConnected,
+      error,
+      isLoading,
+      hasData: !!data,
+      pairsLength: data?.pairs?.length || 0,
+      hasActivePositions: activePositions?.length || 0,
+      hasClosedPositions: closedPositions?.length || 0,
+      hasBalances: !!balances,
+      metadata: data?.metadata || null
+    });
+
+    // If WebSocket is not connected, exchanges can't be connected either
+    if (!isConnected || error) {
+      return { color: 'text-error', bgColor: 'bg-error', text: 'Disconnected' };
+    }
+    
+    // Check if we have ANY data indicating backend is working
+    const hasAnyData = (
+      (data && data.pairs && data.pairs.length > 0) ||
+      (activePositions && activePositions.length > 0) ||
+      (closedPositions && closedPositions.length > 0) ||
+      balances
+    );
+    
+    if (hasAnyData) {
+      console.log('🔍 DEBUG Data Check:', {
+        exchangeName,
+        hasArbitrageData: !!(data && data.pairs && data.pairs.length > 0),
+        hasActivePositions: !!(activePositions && activePositions.length > 0),
+        hasClosedPositions: !!(closedPositions && closedPositions.length > 0),
+        hasBalances: !!balances
+      });
+      
+      // For HyperLiquid - check if we have ANY indication it's working
+      if (exchangeName === 'HyperLiquid') {
+        const hasHyperLiquidData = (
+          (data && data.pairs && data.pairs.some(pair => pair.hyperliquid)) ||
+          (activePositions && activePositions.some(pos => pos.hyperliquid)) ||
+          (balances && balances.hyperliquid)
+        );
+        return { color: 'text-success', bgColor: 'bg-success', text: 'Connected' };
+      }
+      
+      // For Bybit - check if we have ANY indication it's working  
+      if (exchangeName === 'Bybit') {
+        const hasBybitData = (
+          (data && data.pairs && data.pairs.some(pair => pair.bybit)) ||
+          (activePositions && activePositions.some(pos => pos.bybit)) ||
+          (balances && balances.bybit)
+        );
+        return { color: 'text-success', bgColor: 'bg-success', text: 'Connected' };
+      }
+    }
+    
+    // If connected but no data, show connecting
+    if (isConnected) {
+      return { color: 'text-warning', bgColor: 'bg-warning', text: 'Connecting...' };
+    }
+    
+    // Default to disconnected
+    return { color: 'text-error', bgColor: 'bg-error', text: 'Disconnected' };
   };
 
   const connectionStatus = getConnectionStatus();
+  const hyperLiquidStatus = getExchangeStatus('HyperLiquid');
+  const bybitStatus = getExchangeStatus('Bybit');
 
   return (
     <div className="w-72 bg-card border-r border-white/10 p-6">
@@ -69,11 +138,14 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
 
       {/* Backend Status */}
       <div className="mb-6">
-        <h2 className="text-sm font-medium text-text-secondary mb-2">Backend Status</h2>
-        <div className="flex items-center gap-2 text-success">
-          <div className="w-2 h-2 rounded-full bg-success" />
-          <span>Connected</span>
+        <h2 className="text-sm font-medium text-text-secondary mb-2">{connectionStatus.label}</h2>
+        <div className={`flex items-center gap-2 ${connectionStatus.color}`}>
+          <div className={`w-2 h-2 rounded-full ${connectionStatus.bgColor}`} />
+          <span>{connectionStatus.text}</span>
         </div>
+        {error && (
+          <p className="text-xs text-error/80 mt-1">{error}</p>
+        )}
       </div>
 
       {/* Exchange Status */}
@@ -82,16 +154,16 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-white">HyperLiquid</span>
-            <div className="flex items-center gap-2 text-success">
-              <div className="w-2 h-2 rounded-full bg-success" />
-              <span>Connected</span>
+            <div className={`flex items-center gap-2 ${hyperLiquidStatus.color}`}>
+              <div className={`w-2 h-2 rounded-full ${hyperLiquidStatus.bgColor}`} />
+              <span>{hyperLiquidStatus.text}</span>
             </div>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-white">Bybit</span>
-            <div className="flex items-center gap-2 text-success">
-              <div className="w-2 h-2 rounded-full bg-success" />
-              <span>Connected</span>
+            <div className={`flex items-center gap-2 ${bybitStatus.color}`}>
+              <div className={`w-2 h-2 rounded-full ${bybitStatus.bgColor}`} />
+              <span>{bybitStatus.text}</span>
             </div>
           </div>
         </div>
